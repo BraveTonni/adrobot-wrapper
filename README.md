@@ -29,6 +29,7 @@ make check
 make lint        # ruff check + format --check
 make typecheck   # mypy
 make fmt         # ruff format (автоисправление)
+make secret-scan # gitleaks: поиск секретов в коммитах
 ```
 
 Без make:
@@ -42,6 +43,8 @@ uv run mypy .
 CI (GitHub Actions) гоняет `make check` на каждый push в `main` и на каждый PR.
 
 Есть отдельный workflow `Auto Format`: он запускает `ruff format` и сам коммитит изменения, если они есть.
+
+Есть workflow `Secret Scan` (gitleaks): проверяет коммиты на утечку токенов и API-ключей.
 
 ## Лицензия
 

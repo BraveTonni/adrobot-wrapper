@@ -1,4 +1,4 @@
-.PHONY: check lint typecheck fmt run
+.PHONY: check lint typecheck fmt run secret-scan
 
 check: lint typecheck
 
@@ -14,3 +14,6 @@ fmt:
 
 run:
 	uv run main.py
+
+secret-scan:
+	gitleaks detect --source . --config .gitleaks.toml
