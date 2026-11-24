@@ -39,6 +39,8 @@ uv run ruff format --check .
 uv run mypy .
 ```
 
+CI (GitHub Actions) гоняет `make check` на каждый push в `main` и на каждый PR.
+
 ## Лицензия
 
 MIT, см. [LICENSE](LICENSE).
