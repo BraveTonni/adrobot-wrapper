@@ -24,9 +24,11 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
+        working-directory: backend
         run: uv sync --frozen
 
       - name: Apply ruff format
+        working-directory: backend
         run: uv run ruff format .
 
       - name: Commit changes

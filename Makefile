@@ -3,17 +3,17 @@
 check: lint typecheck
 
 lint:
-	uv run ruff check .
-	uv run ruff format --check .
+	cd backend && uv run ruff check .
+	cd backend && uv run ruff format --check .
 
 typecheck:
-	uv run mypy .
+	cd backend && uv run mypy .
 
 fmt:
-	uv run ruff format .
+	cd backend && uv run ruff format .
 
 run:
-	uv run main.py
+	cd backend && uv run main.py
 
 secret-scan:
 	gitleaks detect --source . --config .gitleaks.toml

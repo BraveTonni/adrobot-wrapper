@@ -11,8 +11,15 @@
 ## Запуск
 
 ```bash
+cd backend
 uv sync
 uv run main.py
+```
+
+Или через корневой Makefile:
+
+```bash
+make run
 ```
 
 ## Проверки
