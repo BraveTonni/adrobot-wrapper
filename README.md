@@ -17,6 +17,22 @@ uv run main.py
 
 ## Проверки
 
+Одной командой:
+
+```bash
+make check
+```
+
+Отдельно:
+
+```bash
+make lint        # ruff check + format --check
+make typecheck   # mypy
+make fmt         # ruff format (автоисправление)
+```
+
+Без make:
+
 ```bash
 uv run ruff check .
 uv run ruff format --check .
