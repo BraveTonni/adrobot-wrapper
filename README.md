@@ -41,6 +41,8 @@ uv run mypy .
 
 CI (GitHub Actions) гоняет `make check` на каждый push в `main` и на каждый PR.
 
+Есть отдельный workflow `Auto Format`: он запускает `ruff format` и сам коммитит изменения, если они есть.
+
 ## Лицензия
 
 MIT, см. [LICENSE](LICENSE).
