@@ -3,10 +3,10 @@
 ## Архитектурные принципы
 
 - **SRP:** у каждого модуля одна причина для изменения. HTTP-контракты находятся
-  в `app/transport/http/schemas`, DTO Keitaro — в
-  `app/infrastructure/keitaro/schemas`, доменные сущности — в `app/domain`,
-  сценарии — в `app/application`, ORM-модели — в
-  `app/infrastructure/persistence/models`.
+  в `backend/app/transport/http/schemas`, DTO Keitaro — в
+  `backend/app/infrastructure/keitaro/schemas`, доменные сущности — в
+  `backend/app/domain`, сценарии — в `backend/app/application`, ORM-модели — в
+  `backend/app/infrastructure/persistence/models`.
 - **DIP:** сценарии зависят от узких Protocol-портов; инфраструктурные
   репозитории реализуют их. Не добавляйте интерфейс только ради количества.
 - **DRY:** выносите общее правило при реальном повторении; не объединяйте код с

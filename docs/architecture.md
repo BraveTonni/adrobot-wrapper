@@ -19,22 +19,22 @@ flowchart LR
 
 | Слой | Пакет | Ответственность |
 | --- | --- | --- |
-| Транспорт | `app/transport/http/routes` | HTTP-маршруты, сгруппированные по ресурсам; разбор ошибок находится рядом в `routes/errors.py` |
-| Транспорт | `app/transport/http/schemas` | Pydantic-контракты запросов и ответов, сгруппированные по ресурсам |
-| Транспорт | `app/transport/http/presenters` | Преобразование результатов сценариев в HTTP-ответы |
-| Прикладной | `app/application/campaigns` | Сценарии создания, чтения и редактирования кампаний; команды кампаний |
-| Прикладной | `app/application/catalog` | Сценарии поиска офферов и типы результата справочников |
-| Прикладной | `app/application/health`, `operations`, `offer` | Проверка зависимостей, история операций и проверка оффера |
-| Прикладной | `app/application/ports.py` | Узкие Protocol-порты репозиториев и внешних зависимостей |
-| Доменный | `app/domain/campaigns` | Сущности кампаний, потоков и офферов в потоке |
-| Доменный | `app/domain/catalog` | Доменные типы офферов и справочных значений |
-| Доменный | `app/domain/operations` | Доменная запись истории операции |
-| Доменный | `app/domain/countries.py`, `shares.py` | Правила проверки кода страны и распределения долей |
-| Инфраструктура | `app/infrastructure/keitaro` | HTTP-клиент, внешние схемы Keitaro, разбор ответов и мапперы |
-| Инфраструктура | `app/infrastructure/repositories` | Адаптеры портов: Keitaro, SQL-аудит, проверка базы и кэш каталога |
-| Инфраструктура | `app/infrastructure/persistence` | SQLAlchemy-модели, подключение к БД и реализация репозитория аудита |
-| Инфраструктура | `app/infrastructure/cache`, `logging` | TTL-кэш и настройка логирования |
-| Сборка | `app/config`, `app/core` | Конфигурация, создание контейнера зависимостей и lifespan приложения |
+| Транспорт | `backend/app/transport/http/routes` | HTTP-маршруты, сгруппированные по ресурсам; обработчики ошибок — в `backend/app/transport/http/routes/errors.py` |
+| Транспорт | `backend/app/transport/http/schemas` | Pydantic-контракты запросов и ответов, сгруппированные по ресурсам |
+| Транспорт | `backend/app/transport/http/presenters` | Преобразование результатов сценариев в HTTP-ответы |
+| Прикладной | `backend/app/application/campaigns` | Сценарии создания, чтения и редактирования кампаний; команды кампаний |
+| Прикладной | `backend/app/application/catalog` | Сценарии поиска офферов и типы результата справочников |
+| Прикладной | `backend/app/application/health`, `backend/app/application/operations`, `backend/app/application/offer` | Проверка зависимостей, история операций и проверка оффера |
+| Прикладной | `backend/app/application/ports.py` | Узкие Protocol-порты репозиториев и внешних зависимостей |
+| Доменный | `backend/app/domain/campaigns` | Сущности кампаний, потоков и офферов в потоке |
+| Доменный | `backend/app/domain/catalog` | Доменные типы офферов и справочных значений |
+| Доменный | `backend/app/domain/operations` | Доменная запись истории операции |
+| Доменный | `backend/app/domain/countries.py`, `backend/app/domain/shares.py` | Правила проверки кода страны и распределения долей |
+| Инфраструктура | `backend/app/infrastructure/keitaro` | HTTP-клиент, внешние схемы Keitaro, разбор ответов и мапперы |
+| Инфраструктура | `backend/app/infrastructure/repositories` | Адаптеры портов: Keitaro, SQL-аудит, проверка базы и кэш каталога |
+| Инфраструктура | `backend/app/infrastructure/persistence` | SQLAlchemy-модели, подключение к БД и реализация репозитория аудита |
+| Инфраструктура | `backend/app/infrastructure/cache`, `backend/app/infrastructure/logging` | TTL-кэш и настройка логирования |
+| Сборка | `backend/app/config`, `backend/app/core` | Конфигурация, создание контейнера зависимостей и lifespan приложения |
 
 HTTP-схемы, DTO Keitaro, доменные сущности и ORM-модели — разные типы с разными
 владельцами. Транспорт работает с HTTP-схемами и вызывает application-сценарии.
@@ -42,9 +42,10 @@ Application оперирует доменными типами и не импо�
 SQLAlchemy. Репозитории переводят внешние схемы и ORM-записи в доменные типы.
 Домен не зависит от остальных пакетов приложения.
 
-`app/main.py` создаёт FastAPI-приложение через функцию `create_app`, подключает
-маршруты и HTTP-обработчики ошибок. `app/core/container.py` собирает сценарии и
-репозитории, а `app/core/lifespan.py` управляет временем жизни клиента и базы.
+`backend/app/main.py` создаёт FastAPI-приложение через функцию `create_app`,
+подключает маршруты и HTTP-обработчики ошибок.
+`backend/app/core/container.py` собирает сценарии и репозитории, а
+`backend/app/core/lifespan.py` управляет временем жизни клиента и базы.
 
 ## Создание кампании
 
