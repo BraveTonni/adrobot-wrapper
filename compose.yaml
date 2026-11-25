@@ -46,6 +46,7 @@ services:
       REFERENCE_CACHE_TTL: ${REFERENCE_CACHE_TTL:-3600}
       CAMPAIGN_SEARCH_LIMIT: ${CAMPAIGN_SEARCH_LIMIT:-500}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_DIRECTORY: /app/logs
     secrets:
       - database_url
       - keitaro_api_key
@@ -54,6 +55,7 @@ services:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     volumes:
       - backend_data:/data
+      - ./logs:/app/logs
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777

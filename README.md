@@ -67,6 +67,9 @@ make check
 `make check` запускает backend lint, typecheck и тесты, строгую сборку
 документации, а также frontend lint, typecheck, тесты и production build.
 
+Backend пишет JSON-журналы в `logs/` и stdout. Файлы именуются по времени
+создания (`YYYY_MM_DD_HH_MM_SS.log`); HTTP-запросы включают correlation ID.
+
 Отдельно:
 
 ```bash

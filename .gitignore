@@ -26,6 +26,9 @@ mkdocs-site/
 .env.*
 !.env.example
 /backend/.secrets/
+logs/*
+!logs/.gitkeep
+/backend/logs/
 
 # Локальная база
 *.db
