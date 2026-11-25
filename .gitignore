@@ -23,6 +23,7 @@ site/
 
 # Окружение
 .env
+/backend/.secrets/
 
 # Локальная база
 *.db

@@ -1,10 +1,16 @@
+import os
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Переменные окружения (.env)."""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        secrets_dir=os.getenv("PYDANTIC_SECRETS_DIR") or None,
+    )
 
     # Keitaro Admin API
     keitaro_url: str = "https://keitaro-for-tests.etolegko.com/admin_api/v1"
