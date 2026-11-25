@@ -53,6 +53,13 @@ Compose сначала применит миграции, затем запус�
 случайный токен внутреннего вызова backend из frontend. `frontend_auth_password`
 задаёт пароль браузерного входа; имя пользователя — `admin`.
 
+### Авторизация во frontend
+
+При открытии `http://localhost:3000` браузер запросит Basic Auth. Логин —
+`admin`, пароль — содержимое файла `backend/.secrets/frontend_auth_password`.
+Этот secret создаётся при настройке Compose выше и передаётся контейнеру
+frontend для проверки входа.
+
 Frontend на Next.js также доступен для разработки командами
 `make frontend-install` и `make frontend-dev`. Настройка Compose и архитектура
 описаны в
