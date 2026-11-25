@@ -1,6 +1,3 @@
-# Локальное ТЗ — в репозиторий не попадает
-ТЗ.md
-
 # Python
 __pycache__/
 *.py[cod]
@@ -14,7 +11,15 @@ site/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+.agents/
+.aws/
+.codex/
 .vscode/
+
+# Локальные материалы разработчика
+.local/*
+!.local/.gitkeep
+/todo.md
 
 # Окружение
 .env
