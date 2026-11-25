@@ -32,14 +32,22 @@ export function useCampaignWorkspace() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([api.references(), api.offers()])
-      .then(([loadedReferences, loadedOffers]) => {
+    Promise.allSettled([api.references(), api.offers()] as const)
+      .then(([referencesResult, offersResult]) => {
         if (!active) return;
-        setReferences(loadedReferences);
-        setOffers(loadedOffers);
-      })
-      .catch((reason: unknown) => {
-        if (active) setError(getErrorMessage(reason));
+
+        const errors: string[] = [];
+        if (referencesResult.status === "fulfilled") {
+          setReferences(referencesResult.value);
+        } else {
+          errors.push(getErrorMessage(referencesResult.reason));
+        }
+        if (offersResult.status === "fulfilled") {
+          setOffers(offersResult.value);
+        } else {
+          errors.push(getErrorMessage(offersResult.reason));
+        }
+        if (errors.length > 0) setError(errors.join(" "));
       })
       .finally(() => {
         if (active) setIsLoading(false);
