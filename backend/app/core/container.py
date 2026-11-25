@@ -65,6 +65,7 @@ def build_container(config: Settings = settings) -> ApplicationContainer:
         references_ttl=config.reference_cache_ttl,
         session_factory=session_factory,
     )
+    catalog_service = Catalog(catalog_repository)
     audit_repository = SqlAuditRepository(session_factory)
     health_repository = SqlHealthRepository(session_factory)
 
@@ -74,7 +75,7 @@ def build_container(config: Settings = settings) -> ApplicationContainer:
         settings=config,
         engine=engine,
         client=client,
-        catalog=Catalog(catalog_repository),
+        catalog=catalog_service,
         campaign_creator=CampaignCreator(
             campaign_repository,
             audit_repository,
@@ -84,8 +85,11 @@ def build_container(config: Settings = settings) -> ApplicationContainer:
                 group_id=config.default_group_id,
                 traffic_source_id=config.default_source_id,
             ),
+            catalog=catalog_service,
         ),
-        campaign_editor=CampaignEditor(campaign_repository, audit_repository),
+        campaign_editor=CampaignEditor(
+            campaign_repository, audit_repository, catalog=catalog_service
+        ),
         campaign_queries=CampaignQueries(campaign_repository),
         operation_history=OperationHistory(audit_repository),
         idempotency=SqlIdempotencyRepository(session_factory),

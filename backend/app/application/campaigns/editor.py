@@ -2,8 +2,8 @@
 
 import asyncio
 import logging
-from dataclasses import replace
 
+from app.application.catalog.service import Catalog
 from app.application.errors import (
     ConflictError,
     NotFoundError,
@@ -12,17 +12,21 @@ from app.application.errors import (
 from app.application.offer.validation import ensure_offer_exists
 from app.application.ports import AuditRepository, CampaignEditingRepository
 from app.domain.campaigns.entities import Stream, StreamOffer
-from app.domain.shares import distribute_shares
+from app.domain.shares import rebalance_active_offers
 
 logger = logging.getLogger(__name__)
 
 
 class CampaignEditor:
     def __init__(
-        self, repository: CampaignEditingRepository, audit: AuditRepository
+        self,
+        repository: CampaignEditingRepository,
+        audit: AuditRepository,
+        catalog: Catalog | None = None,
     ) -> None:
         self._repository = repository
         self._audit = audit
+        self._catalog = catalog
 
     async def add_offer(
         self,
@@ -80,7 +84,15 @@ class CampaignEditor:
         stream: Stream | None = None
         try:
             if add:
-                await ensure_offer_exists(self._repository, offer_id)
+                if self._catalog is None:
+                    await ensure_offer_exists(self._repository, offer_id)
+                elif not any(
+                    offer.id == offer_id
+                    for offer in await self._catalog.offers()
+                ):
+                    raise NotFoundError(
+                        f"Оффер #{offer_id} не найден в каталоге Keitaro"
+                    )
             stream = await self._load_stream(campaign_id, stream_id)
             if add:
                 if any(offer.offer_id == offer_id for offer in stream.offers):
@@ -159,14 +171,9 @@ class CampaignEditor:
         self, stream: Stream, offers: list[StreamOffer], *, action: str
     ) -> Stream:
         try:
-            shares = distribute_shares(len(offers))
+            updated_offers = rebalance_active_offers(offers)
         except ValueError as exc:
             raise ConflictError(str(exc)) from exc
-
-        updated_offers = [
-            replace(offer, share=share)
-            for offer, share in zip(offers, shares, strict=True)
-        ]
         updated = await self._repository.update_stream(
             stream.id, updated_offers
         )

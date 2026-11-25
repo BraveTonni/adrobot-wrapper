@@ -7,4 +7,5 @@ class HttpStatus(IntEnum):
     CREATED = 201
     NOT_FOUND = 404
     CONFLICT = 409
+    UNPROCESSABLE_ENTITY = 422
     BAD_GATEWAY = 502
