@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, String
+from sqlalchemy import JSON, DateTime, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.persistence.models.base import Base
@@ -9,6 +9,9 @@ from app.infrastructure.persistence.models.base import Base
 
 class IdempotencyRecord(Base):
     __tablename__ = "idempotency_records"
+    __table_args__ = (
+        Index("ix_idempotency_records_status_created", "status", "created_at"),
+    )
 
     key: Mapped[str] = mapped_column(String(128), primary_key=True)
     request_hash: Mapped[str] = mapped_column(String(64), nullable=False)

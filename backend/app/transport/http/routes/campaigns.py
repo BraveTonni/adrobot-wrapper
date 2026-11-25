@@ -5,7 +5,7 @@ import json
 
 from fastapi import APIRouter, Header, HTTPException, Query
 
-from app.application.errors import ExternalServiceError
+from app.application.errors import ExternalServiceError, NotFoundError
 from app.transport.http.deps import (
     CampaignQueriesDep,
     CatalogDep,
@@ -72,17 +72,29 @@ async def create_campaign(
             status_code=409,
             detail="A request with this Idempotency-Key is still pending",
         )
+    if state == "stale":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This Idempotency-Key is stale. Reconcile the campaign in "
+                "Keitaro, then release it through the operations endpoint."
+            ),
+        )
     if state == "complete" and saved_response is not None:
         return CampaignOut.model_validate(saved_response)
 
-    campaign, streams = await creator.create(
-        name=body.name,
-        geo=body.geo,
-        offer_id=body.offer_id,
-        domain_id=body.domain_id,
-        group_id=body.group_id,
-        source_id=body.source_id,
-    )
+    try:
+        campaign, streams = await creator.create(
+            name=body.name,
+            geo=body.geo,
+            offer_id=body.offer_id,
+            domain_id=body.domain_id,
+            group_id=body.group_id,
+            source_id=body.source_id,
+        )
+    except NotFoundError:
+        await idempotency.release(idempotency_key)
+        raise
     try:
         offers = await catalog.offers()
     except ExternalServiceError:
