@@ -2,7 +2,7 @@
 
 Настройки объявлены в `backend/app/config/settings.py`. Pydantic Settings читает
 переменные окружения и `.env` из текущей рабочей директории. В Docker Compose
-API-ключ читается из secret-файла в `/run/secrets`.
+API-ключ и URL базы читаются из secret-файлов в `/run/secrets`.
 
 Маршруты кампаний, каталога и `/operations` требуют `API_ACCESS_TOKEN`. Для Compose
 сгенерируйте токен и сохраните его в `backend/.secrets/api_access_token`;
@@ -23,7 +23,7 @@ API-ключ читается из secret-файла в `/run/secrets`.
 | `DEFAULT_GROUP_ID` | `10332` | Группа кампании по умолчанию |
 | `DEFAULT_SOURCE_ID` | `836` | Источник трафика по умолчанию |
 | `GEO_REDIRECT_URL` | `https://google.com` | URL действия гео-потока |
-| `DATABASE_URL` | `sqlite+aiosqlite:///./adrobot.db` | SQLAlchemy URL базы данных |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./adrobot.db` | SQLAlchemy URL базы данных; поддерживаются SQLite и PostgreSQL через `asyncpg` |
 | `OFFERS_CACHE_TTL` | `3600` | TTL кэша офферов в секундах |
 | `REFERENCE_CACHE_TTL` | `3600` | TTL кэша справочников в секундах |
 | `CAMPAIGN_SEARCH_LIMIT` | `500` | Максимальное число кампаний, запрашиваемых для поиска |

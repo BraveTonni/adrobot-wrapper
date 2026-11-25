@@ -14,6 +14,8 @@ unset KEITARO_API_KEY
 chmod 444 backend/.secrets/keitaro_api_key
 openssl rand -hex 32 > backend/.secrets/api_access_token
 chmod 444 backend/.secrets/api_access_token
+printf '%s' 'sqlite+aiosqlite:////data/adrobot.db' > backend/.secrets/database_url
+chmod 444 backend/.secrets/database_url
 ```
 
 Запустите сервисы:
@@ -33,6 +35,10 @@ make run
 `backend/.secrets/api_access_token` и монтирует только в backend-контейнер.
 Маршруты кампаний и история операций требуют
 `Authorization: Bearer <api_access_token>`.
+Compose читает URL базы из `backend/.secrets/database_url`; сервис миграции и
+backend используют один и тот же secret. Для PostgreSQL замените содержимое
+файла на URL вида `postgresql+asyncpg://user:password@db-host:5432/adrobot?ssl=require`.
+Перед миграцией убедитесь, что база доступна из Compose-сети.
 Если порт `8000` занят, задайте другой `BACKEND_PORT` в `.env`; публикация
 останется привязана к `127.0.0.1`.
 
@@ -51,7 +57,9 @@ Next.js-приложение и его Dockerfile.
   root и доступны приложению только для чтения.
 - API-ключ не попадает в build context, слои образа или переменные окружения
   процесса. Секрет монтируется Compose в `/run/secrets/keitaro_api_key`;
-  Pydantic Settings читает его через `PYDANTIC_SECRETS_DIR`.
+  Pydantic Settings читает его через `PYDANTIC_SECRETS_DIR`. URL базы данных
+  передаётся таким же file-based secret, чтобы не помещать пароль PostgreSQL в
+  переменные окружения контейнера.
 
 ## Защита контейнеров
 

@@ -13,6 +13,7 @@ dependencies = [
     "alembic>=1.16",
     "pydantic-settings>=2.10",
     "pycountry>=24.6",
+    "asyncpg>=0.31",
 ]
 
 [dependency-groups]
