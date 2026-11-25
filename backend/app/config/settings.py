@@ -1,5 +1,6 @@
 import os
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +18,9 @@ class Settings(BaseSettings):
     keitaro_api_key: str = ""
     keitaro_admin_url: str = "https://keitaro-for-tests.etolegko.com/admin"
     keitaro_timeout: float = 15.0
+
+    # Local API access: read from API_ACCESS_TOKEN or a secret file.
+    api_access_token: str = Field(default="", min_length=32)
 
     # Значения по умолчанию для новых кампаний
     default_domain_id: int = 1813

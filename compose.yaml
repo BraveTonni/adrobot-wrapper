@@ -47,6 +47,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     secrets:
       - keitaro_api_key
+      - api_access_token
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -99,6 +100,8 @@ services:
 secrets:
   keitaro_api_key:
     file: ./backend/.secrets/keitaro_api_key
+  api_access_token:
+    file: ./backend/.secrets/api_access_token
 
 volumes:
   backend_data:

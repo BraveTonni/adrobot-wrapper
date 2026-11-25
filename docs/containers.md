@@ -12,6 +12,8 @@ printf '\n'
 printf '%s' "$KEITARO_API_KEY" > backend/.secrets/keitaro_api_key
 unset KEITARO_API_KEY
 chmod 444 backend/.secrets/keitaro_api_key
+openssl rand -hex 32 > backend/.secrets/api_access_token
+chmod 444 backend/.secrets/api_access_token
 ```
 
 Запустите сервисы:
@@ -26,8 +28,11 @@ make run
 Команда `make docker-build` собирает образ без Compose и не требует API-key.
 
 Основные настройки можно переопределить в локальном `.env`, созданном из
-`.env.example`. API-ключ в `.env` не задавайте: Compose получает его из файла
-`backend/.secrets/keitaro_api_key` и монтирует только в backend-контейнер.
+`.env.example`. API-ключ и токен доступа в `.env` не задавайте: Compose получает
+их из файлов `backend/.secrets/keitaro_api_key` и
+`backend/.secrets/api_access_token` и монтирует только в backend-контейнер.
+Маршруты кампаний и история операций требуют
+`Authorization: Bearer <api_access_token>`.
 Если порт `8000` занят, задайте другой `BACKEND_PORT` в `.env`; публикация
 останется привязана к `127.0.0.1`.
 
@@ -66,10 +71,10 @@ Compose задаёт защиту контейнера, но не перевод
 режим. Для production рассмотрите rootless Docker или user namespace remapping
 на уровне хоста и ограничьте доступ к Docker socket.
 
-## Хранение API-ключа
+## Хранение секретов
 
 Папка `backend/.secrets/` исключена из Git и имеет права `700`. Compose
-монтирует файл ключа read-only. Для file-based secrets локальный Compose
+монтирует файлы секретов read-only. Для file-based secrets локальный Compose
 использует bind mount; `uid`, `gid` и `mode` из Compose не могут изменить права
 такого файла. Поэтому файл имеет mode `444`, а приватная родительская папка
 ограничивает доступ к нему на хосте.

@@ -4,6 +4,10 @@
 переменные окружения и `.env` из текущей рабочей директории. В Docker Compose
 API-ключ читается из secret-файла в `/run/secrets`.
 
+Маршруты кампаний и `/operations` требуют `API_ACCESS_TOKEN`. Для Compose
+сгенерируйте токен и сохраните его в `backend/.secrets/api_access_token`;
+локальный запуск может читать `API_ACCESS_TOKEN` из `backend/.env`.
+
 Скопируйте `backend/.env.example` в `backend/.env` и укажите API-ключ Keitaro.
 Файл `.env` игнорируется Git.
 
@@ -13,6 +17,7 @@ API-ключ читается из secret-файла в `/run/secrets`.
 | `KEITARO_API_KEY` | пустая строка | API-ключ, отправляемый в заголовке `Api-Key` |
 | `KEITARO_ADMIN_URL` | `https://keitaro-for-tests.etolegko.com/admin` | Базовый URL интерфейса Keitaro для ссылок кампаний |
 | `KEITARO_TIMEOUT` | `15.0` | Таймаут HTTP-запроса в секундах |
+| `API_ACCESS_TOKEN` | пустая строка | Bearer-токен для маршрутов кампаний и чтения истории; в Compose читается из secret-файла |
 | `DEFAULT_DOMAIN_ID` | `1813` | Домен кампании, если ID не передан в запросе |
 | `DEFAULT_GROUP_ID` | `10332` | Группа кампании по умолчанию |
 | `DEFAULT_SOURCE_ID` | `836` | Источник трафика по умолчанию |

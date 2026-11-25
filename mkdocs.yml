@@ -34,6 +34,7 @@ nav:
   - Backend:
       - Архитектура: backend/architecture.md
       - HTTP API: backend/api.md
+      - Безопасность API: backend/security.md
       - Конфигурация: backend/configuration.md
       - Разработка и запуск: backend/development.md
       - Эксплуатация: backend/operations.md
