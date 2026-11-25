@@ -61,13 +61,11 @@ class KeitaroClient:
                         "path": path,
                         "status": response.status_code,
                         "duration_ms": duration_ms,
-                        "body": response.text[:300],
                     }
                 },
             )
             raise KeitaroError(
-                f"{method} {path} -> HTTP {response.status_code}: "
-                f"{response.text[:300]}",
+                f"{method} {path} -> HTTP {response.status_code}",
                 status=response.status_code,
             )
         if not response.content:

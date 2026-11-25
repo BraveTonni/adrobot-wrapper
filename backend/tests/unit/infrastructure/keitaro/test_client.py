@@ -224,6 +224,7 @@ async def test_http_failure_preserves_upstream_status(
             await client.list_campaigns(10)
 
     assert error.value.status == 503
+    assert "maintenance" not in str(error.value)
 
 
 @pytest.mark.asyncio
