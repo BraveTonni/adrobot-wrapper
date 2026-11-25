@@ -29,6 +29,8 @@ async function proxyRequest(request: NextRequest, context: RouteContext) {
   headers.set("authorization", `Bearer ${apiToken}`);
   const contentType = request.headers.get("content-type");
   if (contentType) headers.set("content-type", contentType);
+  const idempotencyKey = request.headers.get("idempotency-key");
+  if (idempotencyKey) headers.set("idempotency-key", idempotencyKey);
 
   try {
     const response = await fetch(target, {
