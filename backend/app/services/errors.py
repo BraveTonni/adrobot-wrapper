@@ -1,6 +1,6 @@
-class NotFound(Exception):
+class NotFoundError(Exception):
     """Сущность не найдена."""
 
 
-class Conflict(Exception):
+class ConflictError(Exception):
     """Действие конфликтует с текущим состоянием."""

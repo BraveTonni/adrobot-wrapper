@@ -11,7 +11,7 @@ from app.domain.shares import distribute_shares
 from app.keitaro.client import KeitaroClient
 from app.keitaro.errors import KeitaroError
 from app.keitaro.schemas import Stream, StreamOffer
-from app.services.errors import Conflict, NotFound
+from app.services.errors import ConflictError, NotFoundError
 from app.services.ports import AuditLog
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class CampaignEditor:
         await self._check_offer(offer_id)
         stream = await self._load_stream(campaign_id, stream_id)
         if any(offer.offer_id == offer_id for offer in stream.offers):
-            raise Conflict(f"Оффер #{offer_id} уже есть в потоке")
+            raise ConflictError(f"Оффер #{offer_id} уже есть в потоке")
 
         offers = [
             *stream.offers,
@@ -44,10 +44,10 @@ class CampaignEditor:
             offer for offer in stream.offers if offer.offer_id != offer_id
         ]
         if len(remaining) == len(stream.offers):
-            raise NotFound(f"Оффер #{offer_id} не найден в потоке")
+            raise NotFoundError(f"Оффер #{offer_id} не найден в потоке")
         if not remaining:
             # Поток без офферов отправляет трафик в никуда.
-            raise Conflict(
+            raise ConflictError(
                 "Нельзя удалить последний оффер: сначала добавьте другой"
             )
         return await self._save(
@@ -59,7 +59,7 @@ class CampaignEditor:
             await self._client.get_offer(offer_id)
         except KeitaroError as exc:
             if exc.status == 404:
-                raise NotFound(
+                raise NotFoundError(
                     f"Оффер #{offer_id} не найден в Keitaro"
                 ) from exc
             raise
@@ -69,14 +69,14 @@ class CampaignEditor:
             stream = await self._client.get_stream(stream_id)
         except KeitaroError as exc:
             if exc.status == 404:
-                raise NotFound(f"Поток #{stream_id} не найден") from exc
+                raise NotFoundError(f"Поток #{stream_id} не найден") from exc
             raise
         if stream.campaign_id != campaign_id:
-            raise NotFound(
+            raise NotFoundError(
                 f"Поток #{stream_id} не принадлежит кампании #{campaign_id}"
             )
         if not stream.uses_offers:
-            raise Conflict(f"Поток «{stream.name}» не редактирует офферы")
+            raise ConflictError(f"Поток «{stream.name}» не редактирует офферы")
         return stream
 
     async def _save(
@@ -85,7 +85,7 @@ class CampaignEditor:
         try:
             shares = distribute_shares(len(offers))
         except ValueError as exc:
-            raise Conflict(str(exc)) from exc
+            raise ConflictError(str(exc)) from exc
         payload = {
             "offers": [
                 offer.to_api(share)

@@ -5,12 +5,12 @@ from fastapi.responses import JSONResponse
 
 from app.api.status import HttpStatus
 from app.keitaro.errors import KeitaroError
-from app.services.errors import Conflict, NotFound
+from app.services.errors import ConflictError, NotFoundError
 
 
 def register_error_handlers(app: FastAPI) -> None:
-    app.add_exception_handler(NotFound, _handle_not_found)
-    app.add_exception_handler(Conflict, _handle_conflict)
+    app.add_exception_handler(NotFoundError, _handle_not_found)
+    app.add_exception_handler(ConflictError, _handle_conflict)
     app.add_exception_handler(KeitaroError, _handle_keitaro)
 
 

@@ -18,7 +18,7 @@ from app.keitaro.schemas import (
     StreamCreate,
     StreamFilter,
 )
-from app.services.errors import NotFound
+from app.services.errors import NotFoundError
 from app.services.ports import AuditLog
 
 logger = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ class CampaignCreator:
             await self._client.get_offer(offer_id)
         except KeitaroError as exc:
             if exc.status == 404:
-                raise NotFound(
+                raise NotFoundError(
                     f"Оффер #{offer_id} не найден в Keitaro"
                 ) from exc
             raise
