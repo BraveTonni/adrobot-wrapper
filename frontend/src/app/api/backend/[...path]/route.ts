@@ -39,6 +39,13 @@ async function proxyRequest(request: NextRequest, context: RouteContext) {
   if (request.method !== "GET") {
     const origin = request.headers.get("origin");
     if (origin !== request.nextUrl.origin) {
+      console.warn("Blocked cross-origin API proxy request", {
+        origin,
+        requestOrigin: request.nextUrl.origin,
+        host: request.headers.get("host"),
+        forwardedHost: request.headers.get("x-forwarded-host"),
+        forwardedProto: request.headers.get("x-forwarded-proto"),
+      });
       return NextResponse.json(
         { detail: "Cross-origin requests are not allowed" },
         { status: 403, headers: { "Cache-Control": "no-store" } },
