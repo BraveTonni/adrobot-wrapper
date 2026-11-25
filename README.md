@@ -24,23 +24,26 @@ make run
 
 ## Docker Compose
 
-Для локального запуска скопируйте `.env.example` в `.env`, укажите
-нечувствительные настройки при необходимости, создайте secret-файл и
-выполните:
+Для локального запуска скопируйте `.env.example` в `.env`, задайте
+нечувствительные настройки при необходимости и создайте все Compose secrets:
 
 ```bash
+cp .env.example .env
+chmod 600 .env
 install -d -m 700 backend/.secrets
 read -rsp "Keitaro API key: " KEITARO_API_KEY
 printf '\n'
 printf '%s' "$KEITARO_API_KEY" > backend/.secrets/keitaro_api_key
 unset KEITARO_API_KEY
-chmod 444 backend/.secrets/keitaro_api_key
+openssl rand -hex 32 > backend/.secrets/api_access_token
+printf '%s' 'sqlite+aiosqlite:////data/adrobot.db' > backend/.secrets/database_url
 make run
 ```
 
 Compose сначала применит миграции, затем запустит backend. API доступно только
 на `127.0.0.1:8000`. Ключ Keitaro монтируется как Compose secret, а не
 передаётся переменной окружения. `.env` и secret-файл нельзя коммитить.
+Каталог secrets закрыт правами `700`; не ослабляйте права каталога.
 
 Frontend на Next.js доступен локально командами `make frontend-install` и
 `make frontend-dev`. Настройка Compose и архитектура описаны в
