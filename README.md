@@ -41,7 +41,7 @@ openssl rand -hex 32 > backend/.secrets/frontend_auth_password
 make run
 ```
 
-Compose сначала применит миграции, затем запустит backend и frontend. API
+Compose сначала применит **миграции**, затем запустит backend и frontend. API
 доступно только на `127.0.0.1:8000`, интерфейс — на `http://localhost:3000`.
 Для входа используйте имя `admin` и пароль из
 `backend/.secrets/frontend_auth_password`. Если запускаете Compose напрямую,
