@@ -1,6 +1,6 @@
 site_name: adrobot-wrapper
 docs_dir: docs
-site_dir: site
+site_dir: mkdocs-site
 strict: true
 
 markdown_extensions:

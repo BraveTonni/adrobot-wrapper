@@ -4,7 +4,7 @@ __pycache__/
 .venv/
 dist/
 build/
-site/
+mkdocs-site/
 *.egg-info/
 
 # Инструменты
