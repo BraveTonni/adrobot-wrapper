@@ -38,6 +38,9 @@ nav:
       - Конфигурация: backend/configuration.md
       - Разработка и запуск: backend/development.md
       - Эксплуатация: backend/operations.md
+  - Frontend:
+      - Архитектура: frontend/architecture.md
+      - Разработка и запуск: frontend/development.md
 
 validation:
   links:
