@@ -12,7 +12,9 @@ async def test_lifespan_builds_container_and_closes_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     container = SimpleNamespace(close=AsyncMock())
-    monkeypatch.setattr(lifecycle, "setup_logging", lambda level: None)
+    monkeypatch.setattr(
+        lifecycle, "setup_logging", lambda level, directory: None
+    )
     monkeypatch.setattr(lifecycle, "build_container", lambda config: container)
     app = FastAPI()
 
