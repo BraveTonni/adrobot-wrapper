@@ -44,3 +44,15 @@ async def test_create_rejects_unexpected_stream_order() -> None:
 
     with pytest.raises(ExternalServiceError, match="неожиданный порядок"):
         await creator.create(7, geo="US", offer_id=5)
+
+
+@pytest.mark.asyncio
+async def test_create_rejects_unexpected_extra_stream() -> None:
+    repository = AsyncMock()
+    repository.create_geo_stream.return_value = stream(11)
+    repository.create_offer_stream.return_value = stream(12)
+    repository.list_streams.return_value = [stream(11), stream(12), stream(13)]
+    creator = CampaignStreamsCreator(repository)
+
+    with pytest.raises(ExternalServiceError, match="ровно два потока"):
+        await creator.create(7, geo="US", offer_id=5)

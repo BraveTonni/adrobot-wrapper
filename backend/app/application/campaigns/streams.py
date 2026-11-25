@@ -18,11 +18,12 @@ class CampaignStreamsCreator:
         )
         streams = await self._repository.list_streams(campaign_id)
         order = [stream.id for stream in streams]
+        expected_order = [geo_stream.id, offer_stream.id]
 
-        if order[:2] != [geo_stream.id, offer_stream.id]:
+        if order != expected_order:
             raise ExternalServiceError(
                 f"неожиданный порядок потоков {order}: "
-                f"гео-поток {geo_stream.id} должен быть первым"
+                f"ожидались ровно два потока {expected_order}"
             )
 
         return streams
