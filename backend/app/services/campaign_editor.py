@@ -97,10 +97,24 @@ class CampaignEditor:
         total = sum(offer.share for offer in updated.offers)
         if updated.offers and total != 100:
             logger.error(
-                "поток %s: Keitaro сохранил доли с суммой %s",
-                stream.id,
-                total,
+                "Keitaro сохранил доли с неверной суммой",
+                extra={
+                    "stream_id": stream.id,
+                    "total": total,
+                    "action": action,
+                },
             )
+
+        logger.info(
+            "офферы потока обновлены",
+            extra={
+                "stream_id": stream.id,
+                "campaign_id": stream.campaign_id,
+                "action": action,
+                "offer_ids": [o.offer_id for o in updated.offers],
+                "shares": [o.share for o in updated.offers],
+            },
+        )
 
         await self._audit.record(
             action=action,

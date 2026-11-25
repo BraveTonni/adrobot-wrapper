@@ -45,7 +45,15 @@ class CampaignCreator:
                 traffic_source_id=settings.default_source_id,
             )
         )
-        logger.info("создана кампания %s (%s)", campaign.id, campaign.name)
+        logger.info(
+            "кампания создана",
+            extra={
+                "campaign_id": campaign.id,
+                "name": campaign.name,
+                "geo": geo,
+                "offer_id": offer_id,
+            },
+        )
 
         try:
             streams = await self._create_streams(
@@ -127,7 +135,13 @@ class CampaignCreator:
         cause: BaseException,
     ) -> None:
         logger.warning(
-            "откат кампании %s после ошибки: %r", campaign.id, cause
+            "откат кампании после ошибки",
+            extra={
+                "campaign_id": campaign.id,
+                "error": repr(cause),
+                "geo": geo,
+                "offer_id": offer_id,
+            },
         )
         status = "rolled_back"
         detail: dict[str, object] = {
@@ -142,9 +156,11 @@ class CampaignCreator:
             status = "rollback_failed"
             detail["rollback_error"] = str(delete_exc)
             logger.error(
-                "ОТКАТ НЕ УДАЛСЯ: кампания %s осталась в Keitaro: %s",
-                campaign.id,
-                delete_exc,
+                "откат не удался: кампания осталась в Keitaro",
+                extra={
+                    "campaign_id": campaign.id,
+                    "rollback_error": str(delete_exc),
+                },
             )
         await self._audit.record(
             action="campaign.create",

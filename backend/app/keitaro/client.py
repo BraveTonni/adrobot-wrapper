@@ -1,5 +1,7 @@
 """Тонкий HTTP-клиент Admin API: только запросы и ошибка при не-2xx."""
 
+import logging
+import time
 from typing import Any
 
 import httpx
@@ -17,6 +19,8 @@ from app.keitaro.schemas import (
     TrafficSource,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class KeitaroClient:
     def __init__(self) -> None:
@@ -30,11 +34,36 @@ class KeitaroClient:
         await self._http.aclose()
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
+        started = time.perf_counter()
         try:
             response = await self._http.request(method, path, **kwargs)
         except httpx.HTTPError as exc:
             raise KeitaroError(f"Keitaro недоступен: {exc}") from exc
+        duration_ms = round((time.perf_counter() - started) * 1000, 1)
+        logger.info(
+            "keitaro request",
+            extra={
+                "keitaro": {
+                    "method": method,
+                    "path": path,
+                    "status": response.status_code,
+                    "duration_ms": duration_ms,
+                }
+            },
+        )
         if response.status_code >= 400:
+            logger.error(
+                "keitaro request failed",
+                extra={
+                    "keitaro": {
+                        "method": method,
+                        "path": path,
+                        "status": response.status_code,
+                        "duration_ms": duration_ms,
+                        "body": response.text[:300],
+                    }
+                },
+            )
             raise KeitaroError(
                 f"{method} {path} -> HTTP {response.status_code}: "
                 f"{response.text[:300]}",
