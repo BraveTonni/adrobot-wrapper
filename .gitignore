@@ -23,6 +23,8 @@ mkdocs-site/
 
 # Окружение
 .env
+.env.*
+!.env.example
 /backend/.secrets/
 
 # Локальная база
