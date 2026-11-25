@@ -55,6 +55,7 @@ async def test_campaign_create_and_offer_edit_round_trip() -> None:
 
         campaign, streams = await creator.create(
             name=f"{campaign_prefix}backend_smoke_{uuid4().hex[:8]}",
+            alias=f"test-backend-smoke-{uuid4().hex[:8]}",
             geo="US",
             offer_id=offers[0].id,
         )

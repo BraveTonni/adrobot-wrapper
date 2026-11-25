@@ -17,6 +17,7 @@ class CampaignCreate(BaseModel):
     """Тело POST /campaigns."""
 
     name: str
+    alias: str
     type: Literal["position", "weight"] = "position"
     domain_id: int
     group_id: int

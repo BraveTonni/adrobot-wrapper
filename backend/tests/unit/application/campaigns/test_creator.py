@@ -49,6 +49,7 @@ async def test_create_uses_overrides_and_records_success() -> None:
 
     result = await creator.create(
         name="campaign",
+        alias="campaign-123456789abc",
         geo="US",
         offer_id=5,
         domain_id=100,
@@ -59,6 +60,7 @@ async def test_create_uses_overrides_and_records_success() -> None:
     repository.create_campaign.assert_awaited_once_with(
         CreateCampaign(
             name="campaign",
+            alias="campaign-123456789abc",
             domain_id=100,
             group_id=200,
             traffic_source_id=300,
@@ -77,11 +79,17 @@ async def test_create_uses_configured_defaults() -> None:
     repository.create_campaign.return_value = Campaign(id=7, name="campaign")
     streams_creator.create.return_value = [stream(11, 1)]
 
-    await creator.create(name="campaign", geo="US", offer_id=5)
+    await creator.create(
+        name="campaign",
+        alias="campaign-123456789abc",
+        geo="US",
+        offer_id=5,
+    )
 
     assert repository.create_campaign.await_args.args == (
         CreateCampaign(
             name="campaign",
+            alias="campaign-123456789abc",
             domain_id=10,
             group_id=20,
             traffic_source_id=30,
@@ -95,7 +103,12 @@ async def test_create_maps_missing_offer_to_not_found() -> None:
     repository.get_offer.side_effect = RepositoryNotFoundError
 
     with pytest.raises(NotFoundError, match="#5"):
-        await creator.create(name="campaign", geo="US", offer_id=5)
+        await creator.create(
+            name="campaign",
+            alias="campaign-123456789abc",
+            geo="US",
+            offer_id=5,
+        )
 
     repository.create_campaign.assert_not_awaited()
 
@@ -110,7 +123,12 @@ async def test_create_rolls_back_when_stream_setup_fails() -> None:
     )
 
     with pytest.raises(ExternalServiceError, match="stream setup failed"):
-        await creator.create(name="campaign", geo="US", offer_id=5)
+        await creator.create(
+            name="campaign",
+            alias="campaign-123456789abc",
+            geo="US",
+            offer_id=5,
+        )
 
     repository.delete_campaign.assert_awaited_once_with(7)
     assert audit.finish.await_args.kwargs["status"] == "rolled_back"
@@ -127,6 +145,11 @@ async def test_create_records_failed_rollback() -> None:
     )
 
     with pytest.raises(ExternalServiceError, match="setup failed"):
-        await creator.create(name="campaign", geo="US", offer_id=5)
+        await creator.create(
+            name="campaign",
+            alias="campaign-123456789abc",
+            geo="US",
+            offer_id=5,
+        )
 
     assert audit.finish.await_args.kwargs["status"] == "rollback_failed"

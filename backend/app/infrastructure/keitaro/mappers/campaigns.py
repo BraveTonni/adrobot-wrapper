@@ -28,6 +28,7 @@ def campaign_create_to_keitaro(
 ) -> KeitaroCampaignCreate:
     return KeitaroCampaignCreate(
         name=command.name,
+        alias=command.alias,
         domain_id=command.domain_id,
         group_id=command.group_id,
         traffic_source_id=command.traffic_source_id,

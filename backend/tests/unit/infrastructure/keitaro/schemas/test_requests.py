@@ -10,11 +10,16 @@ from app.infrastructure.keitaro.schemas.requests import (
 
 def test_campaign_request_serializes_default_type() -> None:
     payload = CampaignCreate(
-        name="campaign", domain_id=1, group_id=2, traffic_source_id=3
+        name="campaign",
+        alias="campaign-123456789abc",
+        domain_id=1,
+        group_id=2,
+        traffic_source_id=3,
     )
 
     assert payload.to_api() == {
         "name": "campaign",
+        "alias": "campaign-123456789abc",
         "type": "position",
         "domain_id": 1,
         "group_id": 2,

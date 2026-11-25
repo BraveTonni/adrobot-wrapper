@@ -5,6 +5,7 @@ import json
 
 from fastapi import APIRouter, Header, HTTPException, Query
 
+from app.application.campaigns.alias import build_campaign_alias
 from app.application.errors import ExternalServiceError, NotFoundError
 from app.transport.http.deps import (
     CampaignQueriesDep,
@@ -86,6 +87,7 @@ async def create_campaign(
     try:
         campaign, streams = await creator.create(
             name=body.name,
+            alias=build_campaign_alias(body.name, idempotency_key),
             geo=body.geo,
             offer_id=body.offer_id,
             domain_id=body.domain_id,

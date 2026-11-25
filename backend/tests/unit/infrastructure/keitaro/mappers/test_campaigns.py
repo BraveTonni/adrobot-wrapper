@@ -24,6 +24,7 @@ def test_campaign_response_maps_to_domain_entity() -> None:
 def test_campaign_command_maps_to_keitaro_request() -> None:
     command = CreateCampaign(
         name="Launch",
+        alias="launch-123456789abc",
         domain_id=10,
         group_id=20,
         traffic_source_id=30,
@@ -33,6 +34,7 @@ def test_campaign_command_maps_to_keitaro_request() -> None:
 
     assert request.to_api() == {
         "name": "Launch",
+        "alias": "launch-123456789abc",
         "type": "position",
         "domain_id": 10,
         "group_id": 20,

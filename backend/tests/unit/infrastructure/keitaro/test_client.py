@@ -66,7 +66,11 @@ async def test_create_campaign_posts_api_payload(
     client: KeitaroClient,
 ) -> None:
     payload = CampaignCreate(
-        name="New", domain_id=1, group_id=2, traffic_source_id=3
+        name="New",
+        alias="new-123456789abc",
+        domain_id=1,
+        group_id=2,
+        traffic_source_id=3,
     )
     with respx.mock(base_url="https://keitaro.test/admin_api/v1") as routes:
         route = routes.post("/campaigns").mock(
@@ -77,7 +81,8 @@ async def test_create_campaign_posts_api_payload(
 
     assert result.id == 5
     assert route.calls.last.request.read() == (
-        b'{"name":"New","type":"position","domain_id":1,'
+        b'{"name":"New","alias":"new-123456789abc",'
+        b'"type":"position","domain_id":1,'
         b'"group_id":2,"traffic_source_id":3}'
     )
 

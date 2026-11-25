@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.application.campaigns.alias import build_campaign_alias
 from app.config import Settings
 from app.domain.campaigns.entities import Campaign, Stream, StreamOffer
 from app.domain.catalog.entities import Offer
@@ -70,6 +71,7 @@ async def test_create_campaign_passes_validated_options_to_use_case() -> None:
     assert result.streams[0].offers[0].name == "O"
     creator.create.assert_awaited_once_with(
         name="Launch",
+        alias=build_campaign_alias("Launch", "request-key-1234567890"),
         geo="US",
         offer_id=2,
         domain_id=11,

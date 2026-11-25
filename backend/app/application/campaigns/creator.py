@@ -32,6 +32,7 @@ class CampaignCreator:
         self,
         *,
         name: str,
+        alias: str,
         geo: str,
         offer_id: int,
         domain_id: int | None = None,
@@ -48,6 +49,7 @@ class CampaignCreator:
             campaign = await self._repository.create_campaign(
                 CreateCampaign(
                     name=name,
+                    alias=alias,
                     domain_id=(
                         self._defaults.domain_id
                         if domain_id is None

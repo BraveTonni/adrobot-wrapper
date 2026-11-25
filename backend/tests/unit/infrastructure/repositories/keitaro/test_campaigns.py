@@ -20,6 +20,7 @@ async def test_create_campaign_maps_command_and_response() -> None:
     repository = KeitaroCampaignRepository(client, "https://go.example")
     command = CreateCampaign(
         name="Launch",
+        alias="launch-123456789abc",
         domain_id=1,
         group_id=2,
         traffic_source_id=3,
@@ -30,6 +31,7 @@ async def test_create_campaign_maps_command_and_response() -> None:
     request = client.create_campaign.await_args.args[0]
     assert request.to_api() == {
         "name": "Launch",
+        "alias": "launch-123456789abc",
         "type": "position",
         "domain_id": 1,
         "group_id": 2,
