@@ -15,7 +15,9 @@ src/
 
 ## Интеграция с backend
 
-Браузер вызывает внутренний Next.js route handler `/api/backend/*`. Обработчик передаёт запрос backend, адрес которого берётся из серверной переменной окружения. Так `BACKEND_API_URL` и конфигурация backend не попадают в клиентский bundle. Проксируются `GET /api/v1/references`, `GET /offers`, `GET /campaigns?search=`, `GET /campaigns/{id}`, `POST /campaigns` и POST/DELETE для офферов потоков. Форматы соответствуют Pydantic-схемам backend. Ошибки API централизованно преобразуются в сообщения для пользователя.
+Браузер вызывает внутренний Next.js route handler `/api/backend/*`. Обработчик передаёт запрос backend, адрес которого берётся из серверной переменной `BACKEND_API_URL`, и добавляет Bearer-токен из серверной переменной `API_ACCESS_TOKEN` либо файла `API_ACCESS_TOKEN_FILE`. В Compose токен доступен frontend как secret-файл. Значение токена не передаётся браузеру. Проксируются `GET /api/v1/references`, `GET /offers`, `GET /campaigns?search=`, `GET /campaigns/{id}`, `POST /campaigns` и POST/DELETE для офферов потоков. Форматы соответствуют Pydantic-схемам backend. Ошибки API централизованно преобразуются в сообщения для пользователя.
+
+Создание кампании также отправляет уникальный `Idempotency-Key`. При повторной отправке неизменённой формы используется тот же ключ, чтобы backend не создал дубль после сетевого сбоя.
 
 Переменная `BACKEND_API_URL` читается Next.js на сервере. Keitaro API key остаётся исключительно в backend и не передаётся браузеру.
 
