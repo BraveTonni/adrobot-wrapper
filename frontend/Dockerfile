@@ -16,6 +16,7 @@ RUN addgroup -S -g 10001 app && adduser -S -u 10001 app -G app
 COPY --from=build --chown=app:app /app/.next/standalone ./
 COPY --from=build --chown=app:app /app/.next/static ./.next/static
 COPY --from=build --chown=app:app /app/public ./public
+COPY --chown=app:app entrypoint.mjs ./entrypoint.mjs
 USER app
 EXPOSE 3000
-CMD ["node","server.js"]
+CMD ["node","entrypoint.mjs"]

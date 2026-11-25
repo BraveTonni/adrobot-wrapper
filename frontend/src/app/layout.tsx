@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   description: "Создание кампаний Keitaro и управление офферами.",
 };
 
+export const dynamic = "force-dynamic";
+
 type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
 
 export default function RootLayout({ children }: RootLayoutProps) {

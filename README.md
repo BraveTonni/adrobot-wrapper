@@ -37,6 +37,7 @@ printf '%s' "$KEITARO_API_KEY" > backend/.secrets/keitaro_api_key
 unset KEITARO_API_KEY
 openssl rand -hex 32 > backend/.secrets/api_access_token
 printf '%s' 'sqlite+aiosqlite:////data/adrobot.db' > backend/.secrets/database_url
+openssl rand -hex 32 > backend/.secrets/frontend_auth_password
 make run
 ```
 
@@ -44,6 +45,9 @@ Compose сначала применит миграции, затем запус�
 на `127.0.0.1:8000`. Ключ Keitaro монтируется как Compose secret, а не
 передаётся переменной окружения. `.env` и secret-файл нельзя коммитить.
 Каталог secrets закрыт правами `700`; не ослабляйте права каталога.
+`keitaro_api_key` — ключ тестового стенда Keitaro. `api_access_token` — отдельный
+случайный токен внутреннего вызова backend из frontend. `frontend_auth_password`
+задаёт пароль браузерного входа; имя пользователя — `admin`.
 
 Frontend на Next.js доступен локально командами `make frontend-install` и
 `make frontend-dev`. Настройка Compose и архитектура описаны в
