@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { AOSProvider } from "@/components/aos-provider";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import "./styles/globals.css";
 
 export const metadata: Metadata = {
@@ -23,6 +25,15 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <body>
         <AOSProvider />
         {children}
+        <ToastContainer
+          position="top-right"
+          autoClose={4000}
+          newestOnTop
+          closeOnClick
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
       </body>
     </html>
   );

@@ -89,9 +89,6 @@ export function CampaignWorkspace() {
       {workspace.error && (
         <p className="error" role="alert">{workspace.error}</p>
       )}
-      {workspace.notice && (
-        <p className="success" role="status">{workspace.notice}</p>
-      )}
     </AppShell>
   );
 }

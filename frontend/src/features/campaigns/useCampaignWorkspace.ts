@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "react-toastify";
 import { ApiError, api } from "@/lib/api";
 import type {
   Campaign,
@@ -25,7 +26,6 @@ export function useCampaignWorkspace() {
   const [form, setForm] = useState(emptyCampaign);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const idempotencyKey = useRef<string | null>(null);
@@ -80,24 +80,32 @@ export function useCampaignWorkspace() {
   async function createCampaign(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    setNotice("");
     if (!form.name.trim() || !form.geo.trim() || form.offer_id < 1) {
-      setError("Укажите название, код страны и целевой оффер.");
+      toast.error("Укажите название, код страны и целевой оффер.");
       return;
     }
 
     setIsSaving(true);
+    let created: Campaign;
     try {
       idempotencyKey.current ??= crypto.randomUUID();
-      const created = await api.createCampaign({
+      created = await api.createCampaign({
         ...form,
         name: form.name.trim(),
         geo: form.geo.trim().toUpperCase(),
       }, idempotencyKey.current);
-      idempotencyKey.current = null;
-      setCampaign(created);
-      setNotice(`Кампания «${created.name}» создана.`);
-      setForm(emptyCampaign);
+    } catch (reason) {
+      toast.error(getErrorMessage(reason));
+      setIsSaving(false);
+      return;
+    }
+
+    idempotencyKey.current = null;
+    setCampaign(created);
+    setForm(emptyCampaign);
+    toast.success(`Кампания «${created.name}» создана.`);
+
+    try {
       setCampaigns(await api.campaigns(search));
     } catch (reason) {
       setError(getErrorMessage(reason));
@@ -152,7 +160,6 @@ export function useCampaignWorkspace() {
     form,
     search,
     error,
-    notice,
     isLoading,
     isSaving,
     setForm: updateForm,
