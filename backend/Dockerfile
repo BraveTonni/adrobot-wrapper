@@ -22,10 +22,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM python:3.14-slim-trixie@sha256:22eafb370920ad8b429e0aec3fff433e0669968519f5d60469d83729c138b28b AS runtime
 
-# The base image pin lags Debian security updates (libzstd1) and pip ships
-# vendored libraries (msgpack, urllib3, setuptools) that Trivy flags. Refresh
-# OS packages and drop pip: the runtime never installs anything.
-RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+# Use a dated Debian snapshot so security updates stay repeatable for this
+# pinned base image. The runtime never installs packages after startup.
+RUN rm -f /etc/apt/sources.list.d/debian.sources \
+    && printf 'Types: deb\nURIs: https://snapshot.debian.org/archive/debian/20261125T000000Z\nSuites: trixie trixie-updates\nComponents: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.pgp\nCheck-Valid-Until: no\n' > /etc/apt/sources.list.d/debian.sources \
+    && printf 'Types: deb\nURIs: https://snapshot.debian.org/archive/debian-security/20261125T000000Z\nSuites: trixie-security\nComponents: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.pgp\nCheck-Valid-Until: no\n' > /etc/apt/sources.list.d/debian-security.sources \
+    && DEBIAN_FRONTEND=noninteractive apt-get update \
     && apt-get upgrade -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && python -m pip uninstall -y pip
