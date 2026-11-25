@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError, api } from "@/lib/api";
 import type {
   Campaign,
@@ -28,6 +28,7 @@ export function useCampaignWorkspace() {
   const [notice, setNotice] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const idempotencyKey = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -63,6 +64,11 @@ export function useCampaignWorkspace() {
     };
   }, [search]);
 
+  function updateForm(value: CampaignCreate) {
+    idempotencyKey.current = null;
+    setForm(value);
+  }
+
   async function createCampaign(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -74,11 +80,13 @@ export function useCampaignWorkspace() {
 
     setIsSaving(true);
     try {
+      idempotencyKey.current ??= crypto.randomUUID();
       const created = await api.createCampaign({
         ...form,
         name: form.name.trim(),
         geo: form.geo.trim().toUpperCase(),
-      });
+      }, idempotencyKey.current);
+      idempotencyKey.current = null;
       setCampaign(created);
       setNotice(`Кампания «${created.name}» создана.`);
       setForm(emptyCampaign);
@@ -139,7 +147,7 @@ export function useCampaignWorkspace() {
     notice,
     isLoading,
     isSaving,
-    setForm,
+    setForm: updateForm,
     setSearch,
     setError,
     createCampaign,

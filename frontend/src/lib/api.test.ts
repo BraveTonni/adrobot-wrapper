@@ -31,11 +31,17 @@ describe("API client", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      api.createCampaign({ name: "Кампания", geo: "RU", offer_id: 42 }),
+      api.createCampaign(
+        { name: "Кампания", geo: "RU", offer_id: 42 },
+        "request-key-1234567890",
+      ),
     ).resolves.toEqual(campaign);
 
     const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(request.method).toBe("POST");
+    expect(new Headers(request.headers).get("Idempotency-Key")).toBe(
+      "request-key-1234567890",
+    );
     expect(JSON.parse(String(request.body))).toEqual({
       name: "Кампания",
       geo: "RU",

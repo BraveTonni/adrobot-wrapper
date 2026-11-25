@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 
 type RouteContext = { params: Promise<{ path: string[] }> };
@@ -11,12 +12,21 @@ async function proxyRequest(request: NextRequest, context: RouteContext) {
     );
   }
 
+  const apiToken = await readApiToken();
+  if (!apiToken) {
+    return NextResponse.json(
+      { detail: "Токен доступа к API не настроен на сервере." },
+      { status: 503 },
+    );
+  }
+
   const { path } = await context.params;
   const target = new URL(
     `/api/${path.map(encodeURIComponent).join("/")}${request.nextUrl.search}`,
     backendUrl,
   );
   const headers = new Headers();
+  headers.set("authorization", `Bearer ${apiToken}`);
   const contentType = request.headers.get("content-type");
   if (contentType) headers.set("content-type", contentType);
 
@@ -41,6 +51,21 @@ async function proxyRequest(request: NextRequest, context: RouteContext) {
       { status: 502 },
     );
   }
+}
+
+async function readApiToken(): Promise<string | null> {
+  const tokenFile = process.env.API_ACCESS_TOKEN_FILE;
+  if (tokenFile) {
+    try {
+      const token = (await readFile(tokenFile, "utf8")).trim();
+      return token.length >= 32 ? token : null;
+    } catch {
+      return null;
+    }
+  }
+
+  const token = process.env.API_ACCESS_TOKEN?.trim();
+  return token && token.length >= 32 ? token : null;
 }
 
 export const GET = proxyRequest;

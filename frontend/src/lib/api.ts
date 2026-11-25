@@ -73,9 +73,10 @@ export const api = {
   campaign: (campaignId: number) =>
     request<Campaign>(`/campaigns/${campaignId}`),
 
-  createCampaign: (body: CampaignCreate) =>
+  createCampaign: (body: CampaignCreate, idempotencyKey: string) =>
     request<Campaign>("/campaigns", {
       method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
       body: JSON.stringify(body),
     }),
 
