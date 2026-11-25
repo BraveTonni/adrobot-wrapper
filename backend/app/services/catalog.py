@@ -3,7 +3,7 @@
 import asyncio
 from dataclasses import dataclass
 
-from app.config import settings
+from app.config import Settings, settings
 from app.keitaro.client import KeitaroClient
 from app.keitaro.schemas import CampaignGroup, Domain, Offer, TrafficSource
 from app.services.cache import TtlCache
@@ -17,14 +17,12 @@ class References:
 
 
 class Catalog:
-    def __init__(self, client: KeitaroClient) -> None:
+    def __init__(
+        self, client: KeitaroClient, config: Settings = settings
+    ) -> None:
         self._client = client
-        self._offers: TtlCache[list[Offer]] = TtlCache(
-            settings.offers_cache_ttl
-        )
-        self._refs: TtlCache[References] = TtlCache(
-            settings.reference_cache_ttl
-        )
+        self._offers: TtlCache[list[Offer]] = TtlCache(config.offers_cache_ttl)
+        self._refs: TtlCache[References] = TtlCache(config.reference_cache_ttl)
 
     async def offers(self) -> list[Offer]:
         return await self._offers.get(self._client.list_offers)

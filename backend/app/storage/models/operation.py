@@ -4,7 +4,7 @@ from typing import Any
 from sqlalchemy import JSON, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.storage.db import Base
+from app.storage.models.base import Base
 
 
 def utcnow() -> datetime:

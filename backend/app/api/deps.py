@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.config import Settings
 from app.keitaro.client import KeitaroClient
 from app.services.campaign_creator import CampaignCreator
 from app.services.campaign_editor import CampaignEditor
@@ -31,18 +32,30 @@ def get_catalog(request: Request) -> Catalog:
     return catalog
 
 
+def get_settings(request: Request) -> Settings:
+    config: Settings = request.app.state.settings
+    return config
+
+
+def get_audit_log(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AuditLog:
+    return AuditLog(session)
+
+
 def get_creator(
     client: Annotated[KeitaroClient, Depends(get_client)],
-    session: Annotated[AsyncSession, Depends(get_session)],
+    audit: Annotated[AuditLog, Depends(get_audit_log)],
+    config: Annotated[Settings, Depends(get_settings)],
 ) -> CampaignCreator:
-    return CampaignCreator(client, AuditLog(session))
+    return CampaignCreator(client, audit, config=config)
 
 
 def get_editor(
     client: Annotated[KeitaroClient, Depends(get_client)],
-    session: Annotated[AsyncSession, Depends(get_session)],
+    audit: Annotated[AuditLog, Depends(get_audit_log)],
 ) -> CampaignEditor:
-    return CampaignEditor(client, AuditLog(session))
+    return CampaignEditor(client, audit)
 
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
@@ -50,3 +63,5 @@ ClientDep = Annotated[KeitaroClient, Depends(get_client)]
 CatalogDep = Annotated[Catalog, Depends(get_catalog)]
 CreatorDep = Annotated[CampaignCreator, Depends(get_creator)]
 EditorDep = Annotated[CampaignEditor, Depends(get_editor)]
+SettingsDep = Annotated[Settings, Depends(get_settings)]
+AuditDep = Annotated[AuditLog, Depends(get_audit_log)]

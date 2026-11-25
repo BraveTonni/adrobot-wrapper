@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 
-from app.config import settings
+from app.config import Settings, settings
 from app.keitaro.errors import KeitaroError
 from app.keitaro.schemas import (
     Campaign,
@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 
 
 class KeitaroClient:
-    def __init__(self) -> None:
+    def __init__(self, config: Settings = settings) -> None:
         self._http = httpx.AsyncClient(
-            base_url=settings.keitaro_url,
-            timeout=settings.keitaro_timeout,
-            headers={"Api-Key": settings.keitaro_api_key},
+            base_url=config.keitaro_url,
+            timeout=config.keitaro_timeout,
+            headers={"Api-Key": config.keitaro_api_key},
         )
 
     async def aclose(self) -> None:
@@ -71,7 +71,12 @@ class KeitaroClient:
             )
         if not response.content:
             return None
-        return response.json()
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise KeitaroError(
+                f"{method} {path}: Keitaro вернул некорректный JSON"
+            ) from exc
 
     # --- кампании -------------------------------------------------------
 
@@ -142,12 +147,16 @@ class KeitaroClient:
 def _list(data: Any) -> list[dict[str, Any]]:
     """Список объектов; допускает обёртку в dict с data/items/results."""
     if isinstance(data, list):
-        return [item for item in data if isinstance(item, dict)]
+        if not all(isinstance(item, dict) for item in data):
+            raise KeitaroError(
+                "Keitaro вернул список с некорректными элементами"
+            )
+        return data
     if isinstance(data, dict):
         for key in ("data", "items", "results"):
             if isinstance(data.get(key), list):
-                return [item for item in data[key] if isinstance(item, dict)]
-    return []
+                return _list(data[key])
+    raise KeitaroError("Keitaro вернул ответ неожиданного формата для списка")
 
 
 def _one(data: Any, entity: str) -> dict[str, Any]:

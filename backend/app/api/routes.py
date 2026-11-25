@@ -4,11 +4,13 @@ from fastapi import APIRouter, Query
 from sqlalchemy import text
 
 from app.api.deps import (
+    AuditDep,
     CatalogDep,
     ClientDep,
     CreatorDep,
     EditorDep,
     SessionDep,
+    SettingsDep,
 )
 from app.api.schemas import (
     CampaignCreate,
@@ -18,9 +20,7 @@ from app.api.schemas import (
     campaign_out,
     stream_out,
 )
-from app.config import settings
 from app.services.catalog import Catalog
-from app.storage.audit import recent_operations
 
 router = APIRouter(prefix="/api")
 
@@ -54,9 +54,10 @@ async def offers(
 @router.get("/campaigns")
 async def list_campaigns(
     client: ClientDep,
+    config: SettingsDep,
     search: str = Query(default="", max_length=100),
 ) -> list[dict[str, object]]:
-    campaigns = await client.list_campaigns(settings.campaign_search_limit)
+    campaigns = await client.list_campaigns(config.campaign_search_limit)
     if search:
         needle = search.lower()
         campaigns = [c for c in campaigns if needle in c.name.lower()]
@@ -66,25 +67,36 @@ async def list_campaigns(
 
 @router.post("/campaigns", status_code=201)
 async def create_campaign(
-    body: CampaignCreate, creator: CreatorDep, catalog: CatalogDep
+    body: CampaignCreate,
+    creator: CreatorDep,
+    catalog: CatalogDep,
+    config: SettingsDep,
 ) -> CampaignOut:
     campaign, streams = await creator.create(
-        name=body.name, geo=body.geo, offer_id=body.offer_id
+        name=body.name,
+        geo=body.geo,
+        offer_id=body.offer_id,
+        domain_id=body.domain_id,
+        group_id=body.group_id,
+        source_id=body.source_id,
     )
     names = await _offer_names(catalog)
 
-    return campaign_out(campaign, streams, names)
+    return campaign_out(campaign, streams, names, config.keitaro_admin_url)
 
 
 @router.get("/campaigns/{campaign_id}")
 async def get_campaign(
-    campaign_id: int, client: ClientDep, catalog: CatalogDep
+    campaign_id: int,
+    client: ClientDep,
+    catalog: CatalogDep,
+    config: SettingsDep,
 ) -> CampaignOut:
     campaign = await client.get_campaign(campaign_id)
     streams = await client.list_streams(campaign_id)
     names = await _offer_names(catalog)
 
-    return campaign_out(campaign, streams, names)
+    return campaign_out(campaign, streams, names, config.keitaro_admin_url)
 
 
 @router.post(
@@ -120,8 +132,8 @@ async def remove_offer(
 
 
 @router.get("/operations")
-async def operations(session: SessionDep) -> list[dict[str, object]]:
-    items = await recent_operations(session)
+async def operations(audit: AuditDep) -> list[dict[str, object]]:
+    items = await audit.recent()
     return [
         {
             "id": op.id,

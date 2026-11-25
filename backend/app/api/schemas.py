@@ -2,7 +2,6 @@
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.config import settings
 from app.domain.countries import is_country_code
 from app.keitaro.schemas import Campaign, Stream
 
@@ -67,8 +66,8 @@ class CampaignOut(BaseModel):
     streams: list[StreamOut]
 
 
-def admin_url(campaign_id: int) -> str:
-    base = settings.keitaro_admin_url.rstrip("/")
+def admin_url(campaign_id: int, admin_base_url: str) -> str:
+    base = admin_base_url.rstrip("/")
 
     return f"{base}/#!/campaign.editor/{campaign_id}"
 
@@ -93,12 +92,15 @@ def stream_out(stream: Stream, names: dict[int, str]) -> StreamOut:
 
 
 def campaign_out(
-    campaign: Campaign, streams: list[Stream], names: dict[int, str]
+    campaign: Campaign,
+    streams: list[Stream],
+    names: dict[int, str],
+    admin_base_url: str,
 ) -> CampaignOut:
     return CampaignOut(
         id=campaign.id,
         name=campaign.name,
         alias=campaign.alias,
-        admin_url=admin_url(campaign.id),
+        admin_url=admin_url(campaign.id, admin_base_url),
         streams=[stream_out(stream, names) for stream in streams],
     )

@@ -1,4 +1,4 @@
-"""Журнал операций на SQLAlchemy - реализация ports.AuditLog."""
+"""SQLAlchemy-репозиторий журнала операций."""
 
 import logging
 
@@ -39,11 +39,8 @@ class AuditLog:
             logger.exception("не удалось записать операцию %s", action)
             await self._session.rollback()
 
-
-async def recent_operations(
-    session: AsyncSession, limit: int = 50
-) -> list[Operation]:
-    result = await session.scalars(
-        select(Operation).order_by(Operation.id.desc()).limit(limit)
-    )
-    return list(result)
+    async def recent(self, limit: int = 50) -> list[Operation]:
+        result = await self._session.scalars(
+            select(Operation).order_by(Operation.id.desc()).limit(limit)
+        )
+        return list(result)

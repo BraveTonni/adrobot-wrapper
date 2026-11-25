@@ -9,9 +9,9 @@ from app.api.errors import register_error_handlers
 from app.api.routes import router
 from app.config import settings
 from app.keitaro.client import KeitaroClient
-from app.logging_config import setup_logging
+from app.logging.config import setup_logging
 from app.services.catalog import Catalog
-from app.storage.db import build_engine, build_session_factory
+from app.storage.database import build_engine, build_session_factory
 
 
 @asynccontextmanager
@@ -19,9 +19,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging(settings.log_level)
     engine = build_engine()
     app.state.engine = engine
+    app.state.settings = settings
     app.state.session_factory = build_session_factory(engine)
-    app.state.client = KeitaroClient()
-    app.state.catalog = Catalog(app.state.client)
+    app.state.client = KeitaroClient(settings)
+    app.state.catalog = Catalog(app.state.client, settings)
     yield
     await app.state.client.aclose()
     await engine.dispose()

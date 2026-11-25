@@ -4,13 +4,8 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
-
-
-class Base(DeclarativeBase):
-    """Базовый класс моделей."""
 
 
 def build_engine(database_url: str | None = None) -> AsyncEngine:

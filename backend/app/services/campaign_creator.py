@@ -6,9 +6,10 @@ Keitaro не имеет транзакций, поэтому атомарнос�
 (DELETE /campaigns/{id} удаляет и потоки).
 """
 
+import asyncio
 import logging
 
-from app.config import settings
+from app.config import Settings, settings
 from app.keitaro.client import KeitaroClient
 from app.keitaro.errors import KeitaroError
 from app.keitaro.schemas import (
@@ -28,21 +29,47 @@ OFFER_STREAM_POSITION = 2
 
 
 class CampaignCreator:
-    def __init__(self, client: KeitaroClient, audit: AuditLog) -> None:
+    def __init__(
+        self,
+        client: KeitaroClient,
+        audit: AuditLog,
+        *,
+        config: Settings = settings,
+    ) -> None:
         self._client = client
         self._audit = audit
+        self._config = config
 
     async def create(
-        self, *, name: str, geo: str, offer_id: int
+        self,
+        *,
+        name: str,
+        geo: str,
+        offer_id: int,
+        domain_id: int | None = None,
+        group_id: int | None = None,
+        source_id: int | None = None,
     ) -> tuple[Campaign, list[Stream]]:
         await self._check_offer(offer_id)
 
         campaign = await self._client.create_campaign(
             CampaignCreate(
                 name=name,
-                domain_id=settings.default_domain_id,
-                group_id=settings.default_group_id,
-                traffic_source_id=settings.default_source_id,
+                domain_id=(
+                    self._config.default_domain_id
+                    if domain_id is None
+                    else domain_id
+                ),
+                group_id=(
+                    self._config.default_group_id
+                    if group_id is None
+                    else group_id
+                ),
+                traffic_source_id=(
+                    self._config.default_source_id
+                    if source_id is None
+                    else source_id
+                ),
             )
         )
         logger.info(
@@ -59,8 +86,10 @@ class CampaignCreator:
             streams = await self._create_streams(
                 campaign.id, geo=geo, offer_id=offer_id
             )
-        except BaseException as exc:
-            # Также при отмене: не оставляем полустроенную кампанию.
+        except asyncio.CancelledError as exc:
+            await asyncio.shield(self._rollback(campaign, geo, offer_id, exc))
+            raise
+        except Exception as exc:
             await self._rollback(campaign, geo, offer_id, exc)
             raise
 
@@ -98,7 +127,7 @@ class CampaignCreator:
                 schema="redirect",
                 position=GEO_STREAM_POSITION,
                 action_type="http",
-                action_payload=settings.geo_redirect_url,
+                action_payload=self._config.geo_redirect_url,
                 filters=[
                     StreamFilter(name="country", mode="accept", payload=[geo])
                 ],
