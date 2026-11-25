@@ -12,6 +12,7 @@ from app.application.campaigns.streams import CampaignStreamsCreator
 from app.application.catalog.service import Catalog
 from app.application.health.check import HealthCheck
 from app.application.operations.history import OperationHistory
+from app.application.idempotency import IdempotencyRepository
 from app.config import Settings, settings
 from app.infrastructure.keitaro.client import KeitaroClient
 from app.infrastructure.persistence.audit import SqlAuditRepository
@@ -19,6 +20,7 @@ from app.infrastructure.persistence.database import (
     build_engine,
     build_session_factory,
 )
+from app.infrastructure.persistence.idempotency import SqlIdempotencyRepository
 from app.infrastructure.repositories.catalog.cached import (
     CachedCatalogRepository,
 )
@@ -41,6 +43,7 @@ class ApplicationContainer:
     campaign_editor: CampaignEditor
     campaign_queries: CampaignQueries
     operation_history: OperationHistory
+    idempotency: IdempotencyRepository
     health_check: HealthCheck
 
     async def close(self) -> None:
@@ -84,5 +87,6 @@ def build_container(config: Settings = settings) -> ApplicationContainer:
         campaign_editor=CampaignEditor(campaign_repository, audit_repository),
         campaign_queries=CampaignQueries(campaign_repository),
         operation_history=OperationHistory(audit_repository),
+        idempotency=SqlIdempotencyRepository(session_factory),
         health_check=HealthCheck(health_repository),
     )

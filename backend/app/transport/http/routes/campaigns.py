@@ -1,7 +1,11 @@
 """HTTP-маршруты чтения и изменения кампаний."""
 
-from fastapi import APIRouter, Query
+import hashlib
+import json
 
+from fastapi import APIRouter, Header, HTTPException, Query
+
+from app.application.errors import ExternalServiceError
 from app.transport.http.deps import (
     CampaignQueriesDep,
     CatalogDep,
@@ -9,6 +13,7 @@ from app.transport.http.deps import (
     EditorDep,
     SettingsDep,
 )
+from app.transport.http.idempotency_deps import IdempotencyDep
 from app.transport.http.presenters.campaigns import CampaignResponseFactory
 from app.transport.http.schemas.campaigns import (
     CampaignCreate,
@@ -30,13 +35,46 @@ async def list_campaigns(
     return CampaignResponseFactory.campaigns(campaigns)
 
 
-@router.post("/campaigns", status_code=201, response_model=CampaignOut)
+@router.post(
+    "/campaigns",
+    status_code=201,
+    response_model=CampaignOut,
+)
 async def create_campaign(
     body: CampaignCreate,
     creator: CreatorDep,
     catalog: CatalogDep,
     config: SettingsDep,
+    idempotency: IdempotencyDep,
+    idempotency_key: str | None = Header(
+        default=None, alias="Idempotency-Key", min_length=16, max_length=128
+    ),
 ) -> CampaignOut:
+    if idempotency_key is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Idempotency-Key header is required for campaign creation",
+        )
+    payload = body.model_dump(mode="json")
+    request_hash = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    state, saved_response = await idempotency.reserve(
+        idempotency_key, request_hash
+    )
+    if state == "mismatch":
+        raise HTTPException(
+            status_code=409,
+            detail="Idempotency-Key was already used for another request",
+        )
+    if state == "pending":
+        raise HTTPException(
+            status_code=409,
+            detail="A request with this Idempotency-Key is still pending",
+        )
+    if state == "complete" and saved_response is not None:
+        return CampaignOut.model_validate(saved_response)
+
     campaign, streams = await creator.create(
         name=body.name,
         geo=body.geo,
@@ -45,11 +83,19 @@ async def create_campaign(
         group_id=body.group_id,
         source_id=body.source_id,
     )
-    offers = await catalog.offers()
+    try:
+        offers = await catalog.offers()
+    except ExternalServiceError:
+        # Enrichment is optional after the Keitaro mutation has succeeded.
+        offers = []
 
-    return CampaignResponseFactory.campaign(
+    response = CampaignResponseFactory.campaign(
         campaign, streams, offers, config.keitaro_admin_url
     )
+    await idempotency.complete(
+        idempotency_key, response.model_dump(mode="json")
+    )
+    return response
 
 
 @router.get("/campaigns/{campaign_id}", response_model=CampaignOut)

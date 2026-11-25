@@ -12,7 +12,11 @@ from alembic import context
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.config import settings
-from app.infrastructure.persistence.models import Base, Operation  # noqa: F401
+from app.infrastructure.persistence.models import (  # noqa: F401
+    Base,
+    IdempotencyRecord,
+    Operation,
+)
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)
