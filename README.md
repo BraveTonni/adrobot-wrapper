@@ -41,17 +41,27 @@ openssl rand -hex 32 > backend/.secrets/frontend_auth_password
 make run
 ```
 
-Compose сначала применит **миграции**, затем запустит backend и frontend. API
-доступно только на `127.0.0.1:8000`, интерфейс — на `http://localhost:3000`.
-Для входа используйте имя `admin` и пароль из
-`backend/.secrets/frontend_auth_password`. Если запускаете Compose напрямую,
-включите профиль интерфейса: `docker compose --profile frontend up --build`.
-Ключ Keitaro монтируется как Compose secret, а не передаётся переменной
-окружения. `.env` и secret-файл нельзя коммитить.
-Каталог secrets закрыт правами `700`; не ослабляйте права каталога.
-`keitaro_api_key` — ключ тестового стенда Keitaro. `api_access_token` — отдельный
-случайный токен внутреннего вызова backend из frontend. `frontend_auth_password`
-задаёт пароль браузерного входа; имя пользователя — `admin`.
+Compose:
+
+- сначала применит **миграции**;
+- затем запустит backend и frontend;
+- API будет доступно только на `127.0.0.1:8000`;
+- интерфейс будет доступен на `http://localhost:3000`;
+- для входа используйте логин `admin` и пароль из
+  `backend/.secrets/frontend_auth_password`.
+
+При запуске Compose напрямую включите профиль интерфейса:
+`docker compose --profile frontend up --build`.
+
+Secrets:
+
+- ключ Keitaro монтируется как Compose secret, а не передаётся переменной
+  окружения;
+- каталог `backend/.secrets` закрыт правами `700`; не ослабляйте права;
+- `.env` и secret-файлы нельзя коммитить;
+- `keitaro_api_key` — ключ тестового стенда Keitaro;
+- `api_access_token` — отдельный случайный токен для вызовов backend из frontend;
+- `frontend_auth_password` задаёт пароль браузерного входа; логин — `admin`.
 
 ### Авторизация во frontend
 
