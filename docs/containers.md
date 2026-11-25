@@ -33,7 +33,7 @@ make run
 `.env.example`. API-ключ и токен доступа в `.env` не задавайте: Compose получает
 их из файлов `backend/.secrets/keitaro_api_key` и
 `backend/.secrets/api_access_token` и монтирует только в backend-контейнер.
-Маршруты кампаний и история операций требуют
+Маршруты кампаний, каталога и история операций требуют
 `Authorization: Bearer <api_access_token>`.
 Compose читает URL базы из `backend/.secrets/database_url`; сервис миграции и
 backend используют один и тот же secret. Для PostgreSQL замените содержимое

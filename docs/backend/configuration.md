@@ -17,7 +17,7 @@ API-ключ и URL базы читаются из secret-файлов в `/run/
 | `KEITARO_API_KEY` | пустая строка | API-ключ, отправляемый в заголовке `Api-Key` |
 | `KEITARO_ADMIN_URL` | `https://keitaro-for-tests.etolegko.com/admin` | Базовый URL интерфейса Keitaro для ссылок кампаний |
 | `KEITARO_TIMEOUT` | `15.0` | Таймаут HTTP-запроса в секундах |
-| `API_ACCESS_TOKEN` | пустая строка | Bearer-токен для маршрутов кампаний и чтения истории; в Compose читается из secret-файла |
+| `API_ACCESS_TOKEN` | пустая строка | Bearer-токен для маршрутов кампаний, каталога и истории; в Compose читается из secret-файла |
 | `CORS_ALLOWED_ORIGINS` | `[]` | JSON-массив разрешённых браузерных origin; wildcard запрещён |
 | `DEFAULT_DOMAIN_ID` | `1813` | Домен кампании, если ID не передан в запросе |
 | `DEFAULT_GROUP_ID` | `10332` | Группа кампании по умолчанию |
