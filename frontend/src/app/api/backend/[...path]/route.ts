@@ -4,6 +4,31 @@ import { NextRequest, NextResponse } from "next/server";
 type RouteContext = { params: Promise<{ path: string[] }> };
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 
+function isSameOriginRequest(request: NextRequest): boolean {
+  const origin = request.headers.get("origin");
+  const host =
+    request.headers.get("x-forwarded-host") ??
+    request.headers.get("host") ??
+    request.nextUrl.host;
+  const protocol = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol;
+
+  if (!origin || !host || origin.includes(",") || host.includes(",") || protocol.includes(",")) {
+    return false;
+  }
+
+  try {
+    const parsedOrigin = new URL(origin);
+    const expectedOrigin = new URL(`${protocol.replace(/:$/, "")}://${host}`);
+    return (
+      (parsedOrigin.protocol === "http:" || parsedOrigin.protocol === "https:") &&
+      parsedOrigin.origin === origin &&
+      parsedOrigin.origin === expectedOrigin.origin
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function readLimitedBody(request: Request): Promise<Blob | null> {
   const contentLength = request.headers.get("content-length");
   if (contentLength !== null && Number(contentLength) > MAX_REQUEST_BODY_BYTES) {
@@ -38,7 +63,7 @@ async function readLimitedBody(request: Request): Promise<Blob | null> {
 async function proxyRequest(request: NextRequest, context: RouteContext) {
   if (request.method !== "GET") {
     const origin = request.headers.get("origin");
-    if (origin !== request.nextUrl.origin) {
+    if (!isSameOriginRequest(request)) {
       console.warn("Blocked cross-origin API proxy request", {
         origin,
         requestOrigin: request.nextUrl.origin,

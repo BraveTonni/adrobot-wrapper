@@ -50,6 +50,56 @@ describe("backend proxy request security", () => {
     );
   });
 
+  it("uses the public forwarded origin when Next runs behind a Docker proxy", async () => {
+    vi.stubEnv("BACKEND_API_URL", "http://backend:8000");
+    vi.stubEnv("API_ACCESS_TOKEN", "a".repeat(32));
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ id: 7 }, { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new NextRequest("http://0.0.0.0:3000/api/backend/v1/campaigns", {
+        method: "POST",
+        headers: {
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+          "x-forwarded-host": "localhost:3000",
+          "x-forwarded-proto": "http",
+          "content-type": "application/json",
+        },
+        body: "{}",
+      }),
+      context,
+    );
+
+    expect(response.status).toBe(201);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("rejects forwarded origins that do not match the browser origin", async () => {
+    vi.stubEnv("BACKEND_API_URL", "http://backend:8000");
+    vi.stubEnv("API_ACCESS_TOKEN", "a".repeat(32));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new NextRequest("http://0.0.0.0:3000/api/backend/v1/campaigns", {
+        method: "POST",
+        headers: {
+          origin: "https://attacker.example",
+          host: "localhost:3000",
+          "x-forwarded-host": "localhost:3000",
+          "x-forwarded-proto": "http",
+          "content-type": "application/json",
+        },
+        body: "{}",
+      }),
+      context,
+    );
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("rejects oversized request bodies before contacting the backend", async () => {
     vi.stubEnv("BACKEND_API_URL", "http://backend:8000");
     vi.stubEnv("API_ACCESS_TOKEN", "a".repeat(32));
