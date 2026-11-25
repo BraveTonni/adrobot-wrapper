@@ -1,5 +1,6 @@
 """Тонкий HTTP-клиент Admin API: только запросы и ошибка при не-2xx."""
 
+import asyncio
 import logging
 import time
 from typing import Any
@@ -21,6 +22,8 @@ from app.infrastructure.keitaro.schemas import (
 )
 
 logger = logging.getLogger(__name__)
+GET_RETRIES = 1
+RETRY_DELAY_SECONDS = 0.25
 
 
 class KeitaroClient:
@@ -36,10 +39,53 @@ class KeitaroClient:
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
         started = time.perf_counter()
-        try:
-            response = await self._http.request(method, path, **kwargs)
-        except httpx.HTTPError as exc:
-            raise KeitaroError(f"Keitaro недоступен: {exc}") from exc
+        attempts = 1 + (GET_RETRIES if method.upper() == "GET" else 0)
+        for attempt in range(attempts):
+            try:
+                response = await self._http.request(method, path, **kwargs)
+            except httpx.HTTPError as exc:
+                if attempt + 1 == attempts:
+                    logger.error(
+                        "Keitaro request transport failed",
+                        extra={
+                            "keitaro": {
+                                "method": method,
+                                "path": path,
+                                "attempt": attempt + 1,
+                                "exception_type": type(exc).__name__,
+                            }
+                        },
+                    )
+                    raise KeitaroError(f"Keitaro недоступен: {exc}") from exc
+                logger.warning(
+                    "Keitaro request transport failed; retrying",
+                    extra={
+                        "keitaro": {
+                            "method": method,
+                            "path": path,
+                            "attempt": attempt + 1,
+                            "exception_type": type(exc).__name__,
+                        }
+                    },
+                )
+                await asyncio.sleep(RETRY_DELAY_SECONDS)
+                continue
+
+            if response.status_code >= 500 and attempt + 1 < attempts:
+                logger.warning(
+                    "Keitaro returned a transient server error; retrying",
+                    extra={
+                        "keitaro": {
+                            "method": method,
+                            "path": path,
+                            "attempt": attempt + 1,
+                            "status": response.status_code,
+                        }
+                    },
+                )
+                await asyncio.sleep(RETRY_DELAY_SECONDS)
+                continue
+            break
         duration_ms = round((time.perf_counter() - started) * 1000, 1)
         logger.info(
             "keitaro request",

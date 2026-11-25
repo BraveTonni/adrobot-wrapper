@@ -62,6 +62,42 @@ async def test_get_campaign_accepts_single_item_response(
 
 
 @pytest.mark.asyncio
+async def test_get_retries_after_tls_connection_timeout(
+    client: KeitaroClient,
+) -> None:
+    with respx.mock(base_url="https://keitaro.test/admin_api/v1") as routes:
+        route = routes.get("/domains").mock(
+            side_effect=[
+                httpx.ConnectTimeout("TLS handshake timed out"),
+                httpx.Response(200, json=[{"id": 1, "name": "domain"}]),
+            ]
+        )
+
+        result = await client.list_domains()
+
+    assert result[0].name == "domain"
+    assert route.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_get_retries_transient_upstream_server_error(
+    client: KeitaroClient,
+) -> None:
+    with respx.mock(base_url="https://keitaro.test/admin_api/v1") as routes:
+        route = routes.get("/domains").mock(
+            side_effect=[
+                httpx.Response(502),
+                httpx.Response(200, json=[{"id": 1, "name": "domain"}]),
+            ]
+        )
+
+        result = await client.list_domains()
+
+    assert result[0].name == "domain"
+    assert route.call_count == 2
+
+
+@pytest.mark.asyncio
 async def test_create_campaign_posts_api_payload(
     client: KeitaroClient,
 ) -> None:
