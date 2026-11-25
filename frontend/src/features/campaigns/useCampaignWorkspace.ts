@@ -74,7 +74,7 @@ export function useCampaignWorkspace() {
 
     setIsSaving(true);
     try {
-      const created = await api.create({
+      const created = await api.createCampaign({
         ...form,
         name: form.name.trim(),
         geo: form.geo.trim().toUpperCase(),
