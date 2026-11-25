@@ -33,6 +33,7 @@ def test_stream_request_uses_api_alias_and_omits_empty_fields() -> None:
         name="Geo US",
         type="regular",
         schema="redirect",
+        action_type="http",
         filters=[StreamFilter(name="country", mode="accept", payload=["US"])],
     )
 
@@ -41,6 +42,7 @@ def test_stream_request_uses_api_alias_and_omits_empty_fields() -> None:
         "name": "Geo US",
         "type": "regular",
         "schema": "redirect",
+        "action_type": "http",
         "filters": [{"name": "country", "mode": "accept", "payload": ["US"]}],
     }
 
@@ -52,4 +54,5 @@ def test_stream_request_rejects_unsupported_type() -> None:
             name="bad",
             type="unsupported",
             schema="redirect",
+            action_type="http",
         )

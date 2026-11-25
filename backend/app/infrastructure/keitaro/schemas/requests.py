@@ -35,7 +35,7 @@ class StreamCreate(BaseModel):
     type: Literal["regular", "forced", "default"]
     schema_: Literal["redirect", "landings", "action"] = Field(alias="schema")
     position: int | None = None
-    action_type: str | None = None
+    action_type: str
     action_payload: str | None = None
     filters: list[StreamFilter] | None = None
     offers: list[dict[str, Any]] | None = None

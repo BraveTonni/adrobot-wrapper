@@ -43,6 +43,7 @@ def offer_stream_to_keitaro(campaign_id: int, offer_id: int) -> StreamCreate:
         type="default",
         schema="landings",
         position=OFFER_STREAM_POSITION,
+        action_type="http",
         offers=[{"offer_id": offer_id, "share": 100, "state": "active"}],
     )
 

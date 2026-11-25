@@ -103,6 +103,7 @@ async def test_create_stream_posts_stream_data(client: KeitaroClient) -> None:
                 type="regular",
                 schema="redirect",
                 position=1,
+                action_type="http",
             )
         )
 
