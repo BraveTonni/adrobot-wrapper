@@ -11,9 +11,9 @@ class OperationOut(BaseModel):
     stream_id: int | None
     status: str
     detail: dict[str, object] | None
-    actor: str
-    entity_type: str
-    entity_id: int | None
-    before_payload: dict[str, object] | list[object] | None
-    after_payload: dict[str, object] | list[object] | None
-    error: str | None
+    actor: str = "unknown"
+    entity_type: str = "operation"
+    entity_id: int | None = None
+    before_payload: dict[str, object] | list[object] | None = None
+    after_payload: dict[str, object] | list[object] | None = None
+    error: str | None = None

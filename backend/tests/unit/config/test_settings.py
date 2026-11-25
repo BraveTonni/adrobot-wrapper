@@ -25,6 +25,32 @@ def test_settings_ignore_unknown_environment_variables(monkeypatch) -> None:
     assert Settings(_env_file=None).log_level == "INFO"
 
 
+def test_campaign_streams_can_be_configured() -> None:
+    settings = Settings(
+        _env_file=None,
+        campaign_streams=[
+            {
+                "name": "Geo {geo}",
+                "type": "regular",
+                "schema": "redirect",
+                "position": 1,
+            },
+            {
+                "name": "Landings",
+                "type": "default",
+                "schema": "landings",
+                "position": 2,
+                "initial_offer": True,
+            },
+        ],
+    )
+
+    assert [stream.schema_ for stream in settings.campaign_streams] == [
+        "redirect",
+        "landings",
+    ]
+
+
 def test_settings_read_api_key_from_secrets_directory(tmp_path: Path) -> None:
     secrets_dir = tmp_path / "secrets"
     secrets_dir.mkdir()

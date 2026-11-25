@@ -5,7 +5,10 @@ from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.application.campaigns.creator import CampaignCreator
-from app.application.campaigns.dtos import CampaignDefaults
+from app.application.campaigns.dtos import (
+    CampaignDefaults,
+    CampaignStreamDefinition,
+)
 from app.application.campaigns.editor import CampaignEditor
 from app.application.campaigns.queries import CampaignQueries
 from app.application.campaigns.streams import CampaignStreamsCreator
@@ -16,6 +19,9 @@ from app.application.operations.history import OperationHistory
 from app.config import Settings, settings
 from app.infrastructure.keitaro.client import KeitaroClient
 from app.infrastructure.persistence.audit import SqlAuditRepository
+from app.infrastructure.persistence.campaigns import (
+    SqlCampaignSnapshotRepository,
+)
 from app.infrastructure.persistence.database import (
     build_engine,
     build_session_factory,
@@ -67,9 +73,28 @@ def build_container(config: Settings = settings) -> ApplicationContainer:
     )
     catalog_service = Catalog(catalog_repository)
     audit_repository = SqlAuditRepository(session_factory)
+    snapshot_repository = SqlCampaignSnapshotRepository(session_factory)
     health_repository = SqlHealthRepository(session_factory)
 
-    streams_creator = CampaignStreamsCreator(campaign_repository)
+    streams_creator = CampaignStreamsCreator(
+        campaign_repository,
+        [
+            CampaignStreamDefinition(
+                name=item.name,
+                type=item.type,
+                schema=item.schema_,
+                position=item.position,
+                action_type=item.action_type,
+                action_payload=item.action_payload,
+                filters=tuple(
+                    filter_item.model_dump() for filter_item in item.filters
+                ),
+                initial_offer=item.initial_offer,
+            )
+            for item in config.campaign_streams
+        ],
+        geo_redirect_url=config.geo_redirect_url,
+    )
 
     return ApplicationContainer(
         settings=config,
@@ -86,6 +111,7 @@ def build_container(config: Settings = settings) -> ApplicationContainer:
                 traffic_source_id=config.default_source_id,
             ),
             catalog=catalog_service,
+            snapshots=snapshot_repository,
         ),
         campaign_editor=CampaignEditor(
             campaign_repository, audit_repository, catalog=catalog_service

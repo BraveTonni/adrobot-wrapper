@@ -44,6 +44,7 @@ async def test_create_uses_overrides_and_records_success() -> None:
     repository.get_offer.return_value = Offer(id=5, name="offer")
     campaign = Campaign(id=7, name="campaign")
     repository.create_campaign.return_value = campaign
+    repository.get_campaign.return_value = campaign
     streams = [stream(11, 1), stream(12, 2)]
     streams_creator.create.return_value = streams
 
@@ -69,6 +70,9 @@ async def test_create_uses_overrides_and_records_success() -> None:
     streams_creator.create.assert_awaited_once_with(7, geo="US", offer_id=5)
     assert audit.begin.await_args.kwargs["action"] == "campaign.create"
     assert audit.finish.await_args.kwargs["status"] == "ok"
+    assert (
+        audit.finish.await_args.kwargs["after_payload"]["campaign"]["id"] == 7
+    )
     assert result == (campaign, streams)
 
 
@@ -76,7 +80,9 @@ async def test_create_uses_overrides_and_records_success() -> None:
 async def test_create_uses_configured_defaults() -> None:
     creator, repository, _, streams_creator = build_creator()
     repository.get_offer.return_value = Offer(id=5, name="offer")
-    repository.create_campaign.return_value = Campaign(id=7, name="campaign")
+    campaign = Campaign(id=7, name="campaign")
+    repository.create_campaign.return_value = campaign
+    repository.get_campaign.return_value = campaign
     streams_creator.create.return_value = [stream(11, 1)]
 
     await creator.create(
@@ -153,3 +159,69 @@ async def test_create_records_failed_rollback() -> None:
         )
 
     assert audit.finish.await_args.kwargs["status"] == "rollback_failed"
+    assert "rollback failed" in audit.finish.await_args.kwargs["error"]
+
+
+@pytest.mark.asyncio
+async def test_create_verifies_campaign_before_saving_snapshot() -> None:
+    creator, repository, _, streams_creator = build_creator()
+    campaign = Campaign(id=7, name="campaign")
+    repository.create_campaign.return_value = campaign
+    repository.get_campaign.return_value = campaign
+    streams_creator.create.return_value = [stream(11, 1)]
+    snapshots = AsyncMock()
+    creator._snapshots = snapshots
+
+    await creator.create(
+        name="campaign",
+        alias="campaign-123456789abc",
+        geo="US",
+        offer_id=5,
+    )
+
+    repository.get_campaign.assert_awaited_once_with(7)
+    snapshots.save.assert_awaited_once_with(campaign, [stream(11, 1)])
+
+
+@pytest.mark.asyncio
+async def test_create_rolls_back_when_campaign_verification_fails() -> None:
+    creator, repository, audit, streams_creator = build_creator()
+    repository.create_campaign.return_value = Campaign(id=7, name="campaign")
+    repository.get_campaign.return_value = Campaign(id=8, name="other")
+    streams_creator.create.return_value = [stream(11, 1)]
+
+    with pytest.raises(
+        ExternalServiceError, match="вместо созданной кампании"
+    ):
+        await creator.create(
+            name="campaign",
+            alias="campaign-123456789abc",
+            geo="US",
+            offer_id=5,
+        )
+
+    repository.delete_campaign.assert_awaited_once_with(7)
+    assert audit.finish.await_args.kwargs["status"] == "rolled_back"
+
+
+@pytest.mark.asyncio
+async def test_create_rolls_back_if_local_snapshot_cannot_be_saved() -> None:
+    creator, repository, audit, streams_creator = build_creator()
+    campaign = Campaign(id=7, name="campaign")
+    repository.create_campaign.return_value = campaign
+    repository.get_campaign.return_value = campaign
+    streams_creator.create.return_value = [stream(11, 1)]
+    snapshots = AsyncMock()
+    snapshots.save.side_effect = RuntimeError("database unavailable")
+    creator._snapshots = snapshots
+
+    with pytest.raises(RuntimeError, match="database unavailable"):
+        await creator.create(
+            name="campaign",
+            alias="campaign-123456789abc",
+            geo="US",
+            offer_id=5,
+        )
+
+    repository.delete_campaign.assert_awaited_once_with(7)
+    assert audit.finish.await_args.kwargs["status"] == "rolled_back"

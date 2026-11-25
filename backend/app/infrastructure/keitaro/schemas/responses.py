@@ -51,6 +51,8 @@ class StreamOffer(BaseModel):
 
 
 class Stream(KeitaroModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
     id: int
     campaign_id: int
     name: str | None = None

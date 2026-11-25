@@ -58,6 +58,7 @@ def stream_to_domain(stream: KeitaroStream) -> Stream:
         position=stream.position,
         state=stream.state,
         offers=[stream_offer_to_domain(offer) for offer in stream.offers],
+        raw_payload=stream.model_dump(by_alias=True, exclude_unset=True),
     )
 
 
@@ -67,6 +68,7 @@ def stream_offer_to_domain(offer: KeitaroStreamOffer) -> StreamOffer:
         key: value
         for key, value in data.items()
         if key not in {"offer_id", "share", "state"}
+        and key != "is_pinned"
         and key not in READ_ONLY_OFFER_FIELDS
     }
     return StreamOffer(
@@ -74,6 +76,7 @@ def stream_offer_to_domain(offer: KeitaroStreamOffer) -> StreamOffer:
         share=offer.share,
         state=offer.state,
         metadata=metadata,
+        is_pinned=bool(data.get("is_pinned", False)),
     )
 
 
@@ -87,4 +90,6 @@ def stream_offer_to_keitaro(offer: StreamOffer) -> dict[str, Any]:
     data["share"] = offer.share
     if offer.state is not None:
         data["state"] = offer.state
+    if offer.is_pinned:
+        data["is_pinned"] = True
     return data

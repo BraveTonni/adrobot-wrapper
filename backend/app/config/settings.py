@@ -1,9 +1,27 @@
 import os
 from pathlib import Path
+from typing import Any, Literal
 from urllib.parse import urlsplit
 
-from pydantic import field_validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class StreamFilterSettings(BaseModel):
+    name: str
+    mode: str
+    payload: Any = None
+
+
+class CampaignStreamSettings(BaseModel):
+    name: str
+    type: Literal["regular", "forced", "default"]
+    schema_: Literal["redirect", "landings", "action"] = Field(alias="schema")
+    position: int = Field(gt=0)
+    action_type: str = "http"
+    action_payload: str | None = None
+    filters: list[StreamFilterSettings] = Field(default_factory=list)
+    initial_offer: bool = False
 
 
 class Settings(BaseSettings):
@@ -30,6 +48,29 @@ class Settings(BaseSettings):
     default_group_id: int = 10332
     default_source_id: int = 836
     geo_redirect_url: str = "https://google.com"
+    campaign_streams: list[CampaignStreamSettings] = Field(
+        default_factory=lambda: [
+            CampaignStreamSettings(
+                name="Geo {geo}",
+                type="regular",
+                schema="redirect",
+                position=1,
+                action_payload="{geo_redirect_url}",
+                filters=[
+                    StreamFilterSettings(
+                        name="country", mode="accept", payload=["{geo}"]
+                    )
+                ],
+            ),
+            CampaignStreamSettings(
+                name="Offers",
+                type="default",
+                schema="landings",
+                position=2,
+                initial_offer=True,
+            ),
+        ]
+    )
 
     # База данных
     database_url: str = "sqlite+aiosqlite:///./adrobot.db"

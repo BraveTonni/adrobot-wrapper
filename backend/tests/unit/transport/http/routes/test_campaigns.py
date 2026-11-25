@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from starlette.requests import Request
 
 from app.application.campaigns.alias import build_campaign_alias
 from app.config import Settings
@@ -16,6 +17,24 @@ from app.transport.http.routes.campaigns import (
 )
 from app.transport.http.schemas.campaigns import CampaignCreate
 from app.transport.http.schemas.streams import OfferAdd
+
+
+def request_with_actor() -> Request:
+    return Request(
+        {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/api/v1/campaigns",
+            "raw_path": b"/api/v1/campaigns",
+            "query_string": b"",
+            "headers": [(b"x-user", b"qa-user")],
+            "client": ("127.0.0.1", 1234),
+            "server": ("testserver", 80),
+        }
+    )
 
 
 @pytest.mark.asyncio
@@ -64,7 +83,13 @@ async def test_create_campaign_passes_validated_options_to_use_case() -> None:
     )
 
     result = await create_campaign(
-        body, creator, catalog, config, idempotency, "request-key-1234567890"
+        request_with_actor(),
+        body,
+        creator,
+        catalog,
+        config,
+        idempotency,
+        idempotency_key="request-key-1234567890",
     )
 
     assert result.admin_url == "https://panel/#!/campaign.editor/9"
@@ -77,6 +102,7 @@ async def test_create_campaign_passes_validated_options_to_use_case() -> None:
         domain_id=11,
         group_id=12,
         source_id=13,
+        actor="qa-user",
     )
     idempotency.complete.assert_awaited_once()
 
@@ -109,10 +135,12 @@ async def test_add_offer_returns_stream_response() -> None:
     editor = SimpleNamespace(add_offer=AsyncMock(return_value=stream))
     catalog = SimpleNamespace(offers=AsyncMock(return_value=[]))
 
-    result = await add_offer(1, 2, OfferAdd(offer_id=3), editor, catalog)
+    result = await add_offer(
+        request_with_actor(), 1, 2, OfferAdd(offer_id=3), editor, catalog
+    )
 
     assert result.id == 2
-    editor.add_offer.assert_awaited_once_with(1, 2, 3)
+    editor.add_offer.assert_awaited_once_with(1, 2, 3, actor="qa-user")
 
 
 @pytest.mark.asyncio
@@ -121,7 +149,7 @@ async def test_remove_offer_returns_stream_response() -> None:
     editor = SimpleNamespace(remove_offer=AsyncMock(return_value=stream))
     catalog = SimpleNamespace(offers=AsyncMock(return_value=[]))
 
-    result = await remove_offer(1, 2, 3, editor, catalog)
+    result = await remove_offer(request_with_actor(), 1, 2, 3, editor, catalog)
 
     assert result.id == 2
-    editor.remove_offer.assert_awaited_once_with(1, 2, 3)
+    editor.remove_offer.assert_awaited_once_with(1, 2, 3, actor="qa-user")

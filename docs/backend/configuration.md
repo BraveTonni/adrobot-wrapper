@@ -23,6 +23,7 @@ API-ключ и URL базы читаются из secret-файлов в `/run/
 | `DEFAULT_GROUP_ID` | `10332` | Группа кампании по умолчанию |
 | `DEFAULT_SOURCE_ID` | `836` | Источник трафика по умолчанию |
 | `GEO_REDIRECT_URL` | `https://google.com` | URL действия гео-потока |
+| `CAMPAIGN_STREAMS` | два потока: geo redirect и landings | JSON-массив конфигураций потоков; поля: `name`, `type`, `schema`, `position`, `action_type`, `action_payload`, `filters`, `initial_offer` |
 | `DATABASE_URL` | `sqlite+aiosqlite:///./adrobot.db` | SQLAlchemy URL базы данных; поддерживаются SQLite и PostgreSQL через `asyncpg` |
 | `OFFERS_CACHE_TTL` | `300` | TTL кэша офферов в секундах |
 | `REFERENCE_CACHE_TTL` | `300` | TTL кэша справочников в секундах |
@@ -49,3 +50,33 @@ URL базы данных редактируются. Ограничьте до�
 (TTL настраивается через `OFFERS_CACHE_TTL` и `REFERENCE_CACHE_TTL`). Кнопка
 «Обновить каталог» в форме создания кампании вызывает `POST /api/v1/catalog/refresh`
 и принудительно перечитывает оба набора.
+
+Чтобы изменить набор создаваемых потоков, задайте `CAMPAIGN_STREAMS` как JSON.
+Пример значения:
+
+```json
+[
+  {
+    "name": "Geo {geo}",
+    "type": "regular",
+    "schema": "redirect",
+    "position": 1,
+    "action_type": "http",
+    "action_payload": "{geo_redirect_url}",
+    "filters": [
+      {"name": "country", "mode": "accept", "payload": ["{geo}"]}
+    ]
+  },
+  {
+    "name": "Offers",
+    "type": "default",
+    "schema": "landings",
+    "position": 2,
+    "action_type": "http",
+    "initial_offer": true
+  }
+]
+```
+
+Нужен как минимум один поток `landings` с `initial_offer: true`. Позиции должны
+быть уникальны и больше нуля. Потоки создаются по возрастанию позиции.

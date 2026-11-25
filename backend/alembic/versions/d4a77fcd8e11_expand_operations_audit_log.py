@@ -35,9 +35,15 @@ def upgrade() -> None:
             nullable=False,
         ),
     )
-    op.add_column("audit_log", sa.Column("entity_id", sa.Integer(), nullable=True))
-    op.add_column("audit_log", sa.Column("before_payload", sa.JSON(), nullable=True))
-    op.add_column("audit_log", sa.Column("after_payload", sa.JSON(), nullable=True))
+    op.add_column(
+        "audit_log", sa.Column("entity_id", sa.Integer(), nullable=True)
+    )
+    op.add_column(
+        "audit_log", sa.Column("before_payload", sa.JSON(), nullable=True)
+    )
+    op.add_column(
+        "audit_log", sa.Column("after_payload", sa.JSON(), nullable=True)
+    )
     op.add_column("audit_log", sa.Column("error", sa.Text(), nullable=True))
     op.execute(
         sa.text(

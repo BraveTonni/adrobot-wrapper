@@ -50,8 +50,16 @@ async def test_add_offer_preserves_metadata_and_recalculates_shares() -> None:
                 share=50,
                 state="active",
                 metadata={"custom": "keep"},
+                published_share=100,
+                draft_share=50,
             ),
-            StreamOffer(offer_id=2, share=50, state="active"),
+            StreamOffer(
+                offer_id=2,
+                share=50,
+                state="active",
+                published_share=0,
+                draft_share=50,
+            ),
         ]
     )
     repository.update_stream.return_value = updated_stream
@@ -68,8 +76,16 @@ async def test_add_offer_preserves_metadata_and_recalculates_shares() -> None:
                 share=50,
                 state="active",
                 metadata={"custom": "keep"},
+                published_share=100,
+                draft_share=50,
             ),
-            StreamOffer(offer_id=2, share=50, state="active"),
+            StreamOffer(
+                offer_id=2,
+                share=50,
+                state="active",
+                published_share=0,
+                draft_share=50,
+            ),
         ],
     )
     assert sum(item.share for item in updated.offers) == 100
@@ -174,3 +190,39 @@ async def test_load_stream_maps_repository_not_found() -> None:
 
     with pytest.raises(NotFoundError, match="Поток #11"):
         await editor.remove_offer(7, 11, 1)
+
+
+@pytest.mark.asyncio
+async def test_push_omits_soft_deleted_offers_and_validates_active_sum() -> (
+    None
+):
+    editor, repository, _ = build_editor()
+    stream = offer_stream(
+        [
+            StreamOffer(offer_id=1, share=50, state="active"),
+            StreamOffer(
+                offer_id=2,
+                share=50,
+                state="deleted",
+                is_deleted=True,
+            ),
+        ]
+    )
+    repository.update_stream.return_value = offer_stream(
+        [StreamOffer(offer_id=1, share=100, state="active")]
+    )
+
+    await editor._save(stream, stream.offers, action="stream.sync")
+
+    repository.update_stream.assert_awaited_once_with(
+        11,
+        [
+            StreamOffer(
+                offer_id=1,
+                share=100,
+                state="active",
+                published_share=50,
+                draft_share=100,
+            )
+        ],
+    )

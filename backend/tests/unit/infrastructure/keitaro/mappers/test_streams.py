@@ -42,7 +42,32 @@ def test_stream_response_maps_to_domain_entity() -> None:
         campaign_id=7,
         schema="landings",
         offers=[StreamOffer(offer_id=5, share=100)],
+        raw_payload={
+            "id": 3,
+            "campaign_id": 7,
+            "schema": "landings",
+            "offers": [{"offer_id": 5, "share": 100}],
+        },
     )
+
+
+def test_stream_mapping_keeps_unknown_keitaro_fields_in_raw_payload() -> None:
+    response = KeitaroStream.model_validate(
+        {
+            "id": 3,
+            "campaign_id": 7,
+            "schema": "landings",
+            "filters": [{"name": "country", "mode": "accept"}],
+            "traffic_source_id": 17,
+        }
+    )
+
+    mapped = stream_to_domain(response)
+
+    assert mapped.raw_payload["filters"] == [
+        {"name": "country", "mode": "accept"}
+    ]
+    assert mapped.raw_payload["traffic_source_id"] == 17
 
 
 def test_stream_offer_mapping_preserves_mutable_metadata_only() -> None:

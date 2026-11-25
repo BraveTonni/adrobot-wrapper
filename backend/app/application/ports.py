@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from app.application.campaigns.dtos import CreateCampaign
+from app.application.campaigns.dtos import CreateCampaign, CreateStream
 from app.application.catalog.dtos import References
 from app.domain.campaigns.entities import Campaign, Stream, StreamOffer
 from app.domain.catalog.entities import Offer
@@ -47,17 +47,19 @@ class OfferReader(Protocol):
 class CampaignCreationRepository(OfferReader, Protocol):
     async def create_campaign(self, command: CreateCampaign) -> Campaign: ...
 
+    async def get_campaign(self, campaign_id: int) -> Campaign: ...
+
     async def delete_campaign(self, campaign_id: int) -> None: ...
 
 
-class CampaignStreamsRepository(Protocol):
-    async def create_geo_stream(
-        self, campaign_id: int, geo: str
-    ) -> Stream: ...
+class CampaignSnapshotRepository(Protocol):
+    async def save(
+        self, campaign: Campaign, streams: list[Stream]
+    ) -> None: ...
 
-    async def create_offer_stream(
-        self, campaign_id: int, offer_id: int
-    ) -> Stream: ...
+
+class CampaignStreamsRepository(Protocol):
+    async def create_stream(self, command: CreateStream) -> Stream: ...
 
     async def list_streams(self, campaign_id: int) -> list[Stream]: ...
 

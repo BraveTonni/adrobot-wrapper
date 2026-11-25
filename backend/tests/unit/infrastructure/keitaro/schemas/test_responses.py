@@ -46,3 +46,18 @@ def test_stream_response_defaults_to_an_empty_offer_list() -> None:
         "id": 1,
         "name": "offer",
     }
+
+
+def test_stream_response_retains_unknown_configuration_fields() -> None:
+    stream = Stream.model_validate(
+        {
+            "id": 1,
+            "campaign_id": 2,
+            "schema": "landings",
+            "filters": [{"name": "country", "mode": "accept"}],
+        }
+    )
+
+    assert stream.model_dump(by_alias=True, exclude_unset=True)["filters"] == [
+        {"name": "country", "mode": "accept"}
+    ]

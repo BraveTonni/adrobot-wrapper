@@ -12,6 +12,7 @@ from app.application.errors import (
 from app.application.offer.validation import ensure_offer_exists
 from app.application.ports import AuditRepository, CampaignEditingRepository
 from app.domain.campaigns.entities import Stream, StreamOffer
+from app.domain.campaigns.offer_state import offers_for_push
 from app.domain.shares import rebalance_active_offers
 
 logger = logging.getLogger(__name__)
@@ -108,10 +109,13 @@ class CampaignEditor:
                     if offer.offer_id != offer_id
                 ]
                 if len(offers) == len(stream.offers):
-                    raise NotFoundError(f"Оффер #{offer_id} не найден в потоке")
+                    raise NotFoundError(
+                        f"Оффер #{offer_id} не найден в потоке"
+                    )
                 if not offers:
                     raise ConflictError(
-                        "Нельзя удалить последний оффер: сначала добавьте другой"
+                        "Нельзя удалить последний оффер: "
+                        "сначала добавьте другой"
                     )
 
             updated = await self._save(stream, offers, action=action)
@@ -172,11 +176,10 @@ class CampaignEditor:
     ) -> Stream:
         try:
             updated_offers = rebalance_active_offers(offers)
+            push_offers = offers_for_push(updated_offers)
         except ValueError as exc:
             raise ConflictError(str(exc)) from exc
-        updated = await self._repository.update_stream(
-            stream.id, updated_offers
-        )
+        updated = await self._repository.update_stream(stream.id, push_offers)
 
         total = sum(offer.share for offer in updated.offers)
         if updated.offers and total != 100:
@@ -208,8 +211,8 @@ class CampaignEditor:
         status: str,
         campaign_id: int,
         stream_id: int,
-        before_payload: list[dict[str, object]] | None = None,
-        after_payload: list[dict[str, object]] | None = None,
+        before_payload: list[object] | None = None,
+        after_payload: list[object] | None = None,
         error: str | None = None,
     ) -> None:
         try:
@@ -234,13 +237,19 @@ class CampaignEditor:
             )
 
 
-def _offers_payload(offers: list[StreamOffer]) -> list[dict[str, object]]:
+def _offers_payload(offers: list[StreamOffer]) -> list[object]:
     return [
         {
             "offer_id": offer.offer_id,
             "share": offer.share,
             "state": offer.state,
             "metadata": offer.metadata,
+            "is_pinned": offer.is_pinned,
+            "published_state": offer.published_state,
+            "published_share": offer.published_share,
+            "draft_state": offer.draft_state,
+            "draft_share": offer.draft_share,
+            "is_deleted": offer.is_deleted,
         }
         for offer in offers
     ]

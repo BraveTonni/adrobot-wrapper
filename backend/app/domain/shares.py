@@ -3,28 +3,45 @@ from dataclasses import replace
 from app.domain.campaigns.entities import StreamOffer
 
 
-def distribute_shares(count: int) -> list[int]:
-    """Доли в процентах: сумма всегда 100, разница не больше 1."""
+def distribute_shares(count: int, total: int = 100) -> list[int]:
+    """Равномерно распределяет total между count офферами."""
     if count <= 0:
         return []
     if count > 100:
         raise ValueError("больше 100 офферов в потоке нельзя")
-    base, rest = divmod(100, count)
+    if total < count or total > 100:
+        raise ValueError("недостаточно долей для активных офферов")
+    base, rest = divmod(total, count)
     return [base + (1 if i < rest else 0) for i in range(count)]
 
 
 def is_active_offer(offer: StreamOffer) -> bool:
-    return offer.state is None or offer.state.lower() == "active"
+    return not offer.is_deleted and (
+        offer.state is None or offer.state.lower() == "active"
+    )
 
 
 def rebalance_active_offers(offers: list[StreamOffer]) -> list[StreamOffer]:
     active_indexes = [
         index for index, offer in enumerate(offers) if is_active_offer(offer)
     ]
-    shares = distribute_shares(len(active_indexes))
     updated = list(offers)
-    for index, share in zip(active_indexes, shares, strict=True):
-        updated[index] = replace(updated[index], share=share)
+    pinned_indexes = [
+        index for index in active_indexes if offers[index].is_pinned
+    ]
+    movable_indexes = [
+        index for index in active_indexes if not offers[index].is_pinned
+    ]
+    pinned_share = sum(offers[index].share for index in pinned_indexes)
+    if pinned_share > 100:
+        raise ValueError("сумма закреплённых долей не может превышать 100")
+    if not movable_indexes and pinned_share != 100:
+        raise ValueError("закреплённые активные офферы должны составлять 100%")
+    shares = distribute_shares(len(movable_indexes), 100 - pinned_share)
+    for index, share in zip(movable_indexes, shares, strict=True):
+        updated[index] = replace(
+            updated[index], share=share, draft_share=share
+        )
     validate_offer_shares(updated)
     return updated
 

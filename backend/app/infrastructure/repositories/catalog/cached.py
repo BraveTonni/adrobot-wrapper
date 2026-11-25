@@ -58,10 +58,21 @@ class CachedCatalogRepository:
         force: bool = False,
     ) -> T:
         if self._session_factory is None:
-            cache = self._offers if key == "offers" else self._references
+            if key == "offers":
+                offers_loader = cast(
+                    Callable[[], Awaitable[list[Offer]]], loader
+                )
+                if force:
+                    return cast(T, await self._offers.refresh(offers_loader))
+                return cast(T, await self._offers.get(offers_loader))
+            references_loader = cast(
+                Callable[[], Awaitable[References]], loader
+            )
             if force:
-                return cast(T, await cache.refresh(loader))
-            return cast(T, await cache.get(loader))
+                return cast(
+                    T, await self._references.refresh(references_loader)
+                )
+            return cast(T, await self._references.get(references_loader))
 
         async with self._locks[key]:
             async with self._session_factory() as session:
@@ -110,7 +121,11 @@ def _references_payload(items: list[Reference]) -> list[dict[str, Any]]:
 
 def _decode(key: str, payload: dict[str, Any] | list[Any]) -> Any:
     if key == "offers":
-        return [Offer(id=item["id"], name=item["name"]) for item in payload]
+        offers = cast(list[dict[str, Any]], payload)
+        return [
+            Offer(id=int(item["id"]), name=str(item["name"]))
+            for item in offers
+        ]
     references = cast(dict[str, list[dict[str, Any]]], payload)
     return References(
         domains=_decode_references(references["domains"]),

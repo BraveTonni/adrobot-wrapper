@@ -1,6 +1,6 @@
 """Keitaro-репозиторий кампаний и потоков."""
 
-from app.application.campaigns.dtos import CreateCampaign
+from app.application.campaigns.dtos import CreateCampaign, CreateStream
 from app.domain.campaigns.entities import Campaign, Stream, StreamOffer
 from app.domain.catalog.entities import Offer
 from app.infrastructure.keitaro.client import KeitaroClient
@@ -15,6 +15,7 @@ from app.infrastructure.keitaro.mappers.streams import (
     stream_offer_to_keitaro,
     stream_to_domain,
 )
+from app.infrastructure.keitaro.schemas import StreamCreate, StreamFilter
 from app.infrastructure.repositories.keitaro.errors.translation import execute
 
 
@@ -49,6 +50,24 @@ class KeitaroCampaignRepository:
         stream = await execute(self._client.create_stream(request))
         return stream_to_domain(stream)
 
+    async def create_stream(self, command: CreateStream) -> Stream:
+        request = StreamCreate(
+            campaign_id=command.campaign_id,
+            name=command.name,
+            type=command.type,
+            schema=command.schema,
+            position=command.position,
+            action_type=command.action_type,
+            action_payload=command.action_payload,
+            filters=[
+                StreamFilter.model_validate(item) for item in command.filters
+            ]
+            or None,
+            offers=list(command.offers) or None,
+        )
+        stream = await execute(self._client.create_stream(request))
+        return stream_to_domain(stream)
+
     async def list_campaigns(
         self, limit: int, offset: int = 0
     ) -> list[Campaign]:
@@ -70,8 +89,16 @@ class KeitaroCampaignRepository:
     async def update_stream(
         self, stream_id: int, offers: list[StreamOffer]
     ) -> Stream:
+        current = await execute(self._client.get_stream(stream_id))
         payload = {
-            "offers": [stream_offer_to_keitaro(offer) for offer in offers]
+            key: value
+            for key, value in current.model_dump(
+                by_alias=True, exclude_unset=True
+            ).items()
+            if key not in {"id", "created_at", "updated_at"}
         }
+        payload["offers"] = [
+            stream_offer_to_keitaro(offer) for offer in offers
+        ]
         stream = await execute(self._client.update_stream(stream_id, payload))
         return stream_to_domain(stream)

@@ -4,14 +4,18 @@ import asyncio
 import logging
 from collections.abc import Sequence
 
-from app.application.catalog.dtos import References
-from app.application.catalog.service import Catalog
 from app.application.campaigns.dtos import CampaignDefaults, CreateCampaign
-from app.application.errors import NotFoundError, ValidationError
+from app.application.catalog.service import Catalog
+from app.application.errors import (
+    ExternalServiceError,
+    NotFoundError,
+    ValidationError,
+)
 from app.application.offer.validation import ensure_offer_exists
 from app.application.ports import (
     AuditRepository,
     CampaignCreationRepository,
+    CampaignSnapshotRepository,
     CampaignStreamSetup,
 )
 from app.domain.campaigns.entities import Campaign, Stream, StreamOffer
@@ -30,12 +34,14 @@ class CampaignCreator:
         streams_creator: CampaignStreamSetup,
         defaults: CampaignDefaults,
         catalog: Catalog | None = None,
+        snapshots: CampaignSnapshotRepository | None = None,
     ) -> None:
         self._repository = repository
         self._audit = audit
         self._streams_creator = streams_creator
         self._defaults = defaults
         self._catalog = catalog
+        self._snapshots = snapshots
 
     async def create(
         self,
@@ -83,15 +89,14 @@ class CampaignCreator:
             validate_offer_shares(
                 [StreamOffer(offer_id=offer_id, share=100, state="active")]
             )
-            campaign = await self._repository.create_campaign(
-                CreateCampaign(
-                    name=name,
-                    alias=alias,
-                    domain_id=resolved_domain_id,
-                    group_id=resolved_group_id,
-                    traffic_source_id=resolved_source_id,
-                )
+            command = CreateCampaign(
+                name=name,
+                alias=alias,
+                domain_id=resolved_domain_id,
+                group_id=resolved_group_id,
+                traffic_source_id=resolved_source_id,
             )
+            campaign = await self._repository.create_campaign(command)
             logger.info(
                 "кампания создана",
                 extra={
@@ -104,6 +109,13 @@ class CampaignCreator:
             streams = await self._streams_creator.create(
                 campaign.id, geo=normalized_geo, offer_id=offer_id
             )
+            verified_campaign = await self._repository.get_campaign(
+                campaign.id
+            )
+            _verify_campaign(campaign.id, command, verified_campaign)
+            campaign = verified_campaign
+            if self._snapshots is not None:
+                await self._snapshots.save(campaign, streams)
         except asyncio.CancelledError as exc:
             if campaign is None:
                 await asyncio.shield(
@@ -278,6 +290,34 @@ def _require_reference(
     references: Sequence[Reference], item_id: int, label: str
 ) -> None:
     if not any(reference.id == item_id for reference in references):
-        raise NotFoundError(
-            f"{label} #{item_id} не найден в каталоге Keitaro"
+        raise NotFoundError(f"{label} #{item_id} не найден в каталоге Keitaro")
+
+
+def _verify_campaign(
+    campaign_id: int,
+    command: CreateCampaign,
+    verified: Campaign,
+) -> None:
+    if verified.id != campaign_id:
+        raise ExternalServiceError(
+            f"Keitaro вернул кампанию #{verified.id} вместо "
+            f"созданной кампании #{campaign_id}"
         )
+    if verified.name != command.name:
+        raise ExternalServiceError(
+            f"Keitaro вернул кампанию #{campaign_id} с неожиданным названием"
+        )
+
+    expected_optional = {
+        "alias": command.alias,
+        "domain_id": command.domain_id,
+        "group_id": command.group_id,
+        "traffic_source_id": command.traffic_source_id,
+    }
+    for field, expected in expected_optional.items():
+        actual = getattr(verified, field)
+        if actual is not None and actual != expected:
+            raise ExternalServiceError(
+                f"Keitaro вернул кампанию #{campaign_id} с неожиданным "
+                f"значением {field}"
+            )
