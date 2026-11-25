@@ -1,10 +1,14 @@
 """SQLAlchemy-реализация репозитория истории операций."""
 
+import logging
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.domain.operations.entities import AuditRecord
 from app.infrastructure.persistence.models import Operation
+
+logger = logging.getLogger(__name__)
 
 
 class SqlAuditRepository:
@@ -34,6 +38,10 @@ class SqlAuditRepository:
                 await session.commit()
             except Exception:
                 await session.rollback()
+                logger.exception(
+                    "не удалось записать операцию аудита",
+                    extra={"action": action},
+                )
                 raise
             return operation.id
 
