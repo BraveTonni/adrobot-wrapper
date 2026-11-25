@@ -51,16 +51,24 @@ Frontend на Next.js доступен локально командами `make
 Одной командой:
 
 ```bash
+cd backend && uv sync --locked
+cd frontend && npm ci
+cd ..
 make check
 ```
+
+`make check` запускает backend lint, typecheck и тесты, строгую сборку
+документации, а также frontend lint, typecheck, тесты и production build.
 
 Отдельно:
 
 ```bash
 make lint        # ruff check + format --check
 make typecheck   # mypy
+make test        # pytest
 make fmt         # ruff format (автоисправление)
 make secret-scan # gitleaks: поиск секретов в коммитах
+make frontend-check # frontend lint, typecheck, tests и build
 ```
 
 ## Документация
@@ -78,12 +86,24 @@ make docs
 Требования к изменениям и тестам находятся в
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Без make:
+Без make (backend):
 
 ```bash
+cd backend
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy .
+uv run pytest
+```
+
+Без make (frontend):
+
+```bash
+cd frontend
+npm run lint
+npm run typecheck
+npm test
+npm run build
 ```
 
 CI (GitHub Actions) гоняет `make check` на каждый push в `main` и на каждый PR.

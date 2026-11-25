@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help check lint typecheck fmt run up down logs docker-build migrate test docs docs-serve secret-scan frontend-install frontend-dev frontend-lint frontend-typecheck frontend-test frontend-build frontend-docker-build
+.PHONY: help check lint typecheck fmt run up down logs docker-build migrate test docs docs-serve secret-scan frontend-install frontend-dev frontend-lint frontend-typecheck frontend-test frontend-build frontend-check frontend-docker-build
 
 help:
 	@echo "Доступные команды:"
@@ -10,7 +10,7 @@ help:
 	@echo "  make logs         Показать логи backend"
 	@echo "  make docker-build Собрать backend-образ без запуска Compose"
 	@echo "  make migrate      Выполнить миграции базы данных"
-	@echo "  make check        Запустить Ruff, mypy и строгую сборку документации"
+	@echo "  make check        Проверить backend, frontend, тесты и документацию"
 	@echo "  make lint         Запустить Ruff"
 	@echo "  make typecheck    Запустить mypy"
 	@echo "  make test         Запустить pytest"
@@ -18,8 +18,11 @@ help:
 	@echo "  make docs         Собрать документацию"
 	@echo "  make docs-serve   Запустить локальный сервер документации"
 	@echo "  make secret-scan  Проверить репозиторий через gitleaks"
+	@echo "  make frontend-install Установить зависимости frontend"
+	@echo "  make frontend-dev     Запустить frontend в режиме разработки"
+	@echo "  make frontend-check   Проверить frontend lint/typecheck/tests/build"
 
-check: lint typecheck docs
+check: lint typecheck test docs frontend-check
 
 lint:
 	cd backend && uv run ruff check .
@@ -79,6 +82,8 @@ frontend-test:
 
 frontend-build:
 	cd frontend && npm run build
+
+frontend-check: frontend-lint frontend-typecheck frontend-test frontend-build
 
 frontend-docker-build:
 	docker build -f frontend/Dockerfile -t adrobot-wrapper-frontend:local frontend
