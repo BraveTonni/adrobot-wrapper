@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -5,13 +6,14 @@ import pytest
 from app.application.campaigns.creator import CampaignCreator
 from app.application.campaigns.dtos import CampaignDefaults, CreateCampaign
 from app.application.campaigns.streams import CampaignStreamsCreator
+from app.application.catalog.dtos import References
 from app.application.errors import (
     ExternalServiceError,
     NotFoundError,
     RepositoryNotFoundError,
 )
 from app.domain.campaigns.entities import Campaign, Stream
-from app.domain.catalog.entities import Offer
+from app.domain.catalog.entities import Offer, Reference
 
 
 def build_creator() -> tuple[CampaignCreator, AsyncMock, AsyncMock, AsyncMock]:
@@ -117,6 +119,47 @@ async def test_create_maps_missing_offer_to_not_found() -> None:
         )
 
     repository.create_campaign.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("missing", "message"),
+    [
+        ("offer", "Оффер #5"),
+        ("domain", "Домен #10"),
+        ("group", "Группа кампаний #20"),
+        ("source", "Источник трафика #30"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_create_validates_catalog_before_remote_mutation(
+    missing: str, message: str
+) -> None:
+    creator, repository, _, streams_creator = build_creator()
+    offers = [] if missing == "offer" else [Offer(id=5, name="offer")]
+    references = References(
+        domains=[]
+        if missing == "domain"
+        else [Reference(id=10, name="Domain")],
+        groups=[] if missing == "group" else [Reference(id=20, name="Group")],
+        sources=[]
+        if missing == "source"
+        else [Reference(id=30, name="Source")],
+    )
+    creator._catalog = SimpleNamespace(
+        offers=AsyncMock(return_value=offers),
+        references=AsyncMock(return_value=references),
+    )
+
+    with pytest.raises(NotFoundError, match=message):
+        await creator.create(
+            name="campaign",
+            alias="campaign-123456789abc",
+            geo="US",
+            offer_id=5,
+        )
+
+    repository.create_campaign.assert_not_awaited()
+    streams_creator.create.assert_not_awaited()
 
 
 @pytest.mark.asyncio

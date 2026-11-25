@@ -345,6 +345,23 @@ async def test_push_rejects_empty_active_set_before_keitaro_request() -> None:
 
 
 @pytest.mark.asyncio
+async def test_push_rejects_invalid_share_sum_before_remote() -> None:
+    editor, repository, _, drafts = build_draft_editor()
+    drafts.get_stream.return_value = offer_stream(
+        [
+            StreamOffer(offer_id=1, share=40, state="active"),
+            StreamOffer(offer_id=2, share=40, state="active"),
+        ]
+    )
+
+    with pytest.raises(ConflictError, match="равна 100"):
+        await editor.push(7, 11)
+
+    repository.update_stream.assert_not_awaited()
+    drafts.sync_stream.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_cancel_draft_restores_and_discards_new_offer() -> None:
     editor, _, _, drafts = build_draft_editor()
     drafts.get_stream.return_value = offer_stream(

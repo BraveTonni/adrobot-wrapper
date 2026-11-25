@@ -36,6 +36,8 @@ async def test_begin_commits_pending_operation() -> None:
     assert isinstance(operation, Operation)
     assert operation.action == "campaign.create"
     assert operation.status == "pending"
+    assert operation.actor == "unknown"
+    assert operation.entity_type == "operation"
     assert operation.campaign_id == 3
     assert operation.detail == {"geo": "US"}
     session.commit.assert_awaited_once()
@@ -69,6 +71,11 @@ async def test_recent_maps_orm_rows_to_domain_records() -> None:
         stream_id=None,
         status="ok",
         detail={"name": "x"},
+        actor="qa-user",
+        entity_type="campaign",
+        entity_id=7,
+        before_payload={"name": "old"},
+        after_payload={"name": "x"},
     )
     session = AsyncMock()
     session.scalars.return_value = [operation]
@@ -86,6 +93,11 @@ async def test_recent_maps_orm_rows_to_domain_records() -> None:
             stream_id=None,
             status="ok",
             detail={"name": "x"},
+            actor="qa-user",
+            entity_type="campaign",
+            entity_id=7,
+            before_payload={"name": "old"},
+            after_payload={"name": "x"},
         )
     ]
     session.scalars.assert_awaited_once()
