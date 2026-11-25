@@ -361,7 +361,7 @@ select:focus-visible {
 
 .stream-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 
@@ -384,6 +384,26 @@ select:focus-visible {
 .stream-title h3 {
   margin: 0;
   font-size: 14px;
+}
+
+.stream-offers {
+  margin-top: 18px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 14px;
+}
+
+.stream-offers-title {
+  margin: 0;
+  font-size: 13px;
+}
+
+.stream-offers .offer-stack {
+  margin-top: 8px;
+}
+
+.stream-offers .empty {
+  margin: 8px 0;
+  padding: 14px;
 }
 
 .offer-row {

@@ -98,70 +98,71 @@ function StreamCard({
         <h3>{stream.name || `Поток ${index + 1}`}</h3>
         <span className="eyebrow">ID {stream.id}</span>
       </header>
-      {stream.uses_offers && stream.offers.length === 0 ? (
-        <p className="empty">В потоке пока нет офферов.</p>
-      ) : !stream.uses_offers ? (
+      {stream.uses_offers ? (
+        <section className="stream-offers">
+          <h4 className="stream-offers-title">Офферы этого потока</h4>
+          {stream.offers.length === 0 ? (
+            <p className="empty">В этом потоке пока нет настроенных офферов.</p>
+          ) : (
+            <ul className="offer-stack">
+              {stream.offers.map((offer) => (
+                <li className="offer-row" key={offer.offer_id}>
+                  <span>
+                    <strong>{offer.name || `Оффер ${offer.offer_id}`}</strong>
+                    <span className="muted offer-meta">
+                      Доля {offer.share}% · ID {offer.offer_id}
+                    </span>
+                  </span>
+                  <button
+                    aria-label={`Удалить оффер ${offer.name || offer.offer_id}`}
+                    className="button danger icon-button"
+                    disabled={isSaving || stream.offers.length <= 1}
+                    type="button"
+                    onClick={() =>
+                      onOfferChange(stream.id, offer.offer_id, "remove")
+                    }
+                  >
+                    <span aria-hidden="true" className="icon">
+                      delete
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <form className="inline-form" onSubmit={addOffer}>
+            <label className="sr-only" htmlFor={`offer-${stream.id}`}>
+              Оффер для добавления
+            </label>
+            <select
+              id={`offer-${stream.id}`}
+              name="offerId"
+              defaultValue=""
+              required
+            >
+              <option value="">Добавить оффер…</option>
+              {availableOffers.map((offer) => (
+                <option key={offer.id} value={offer.id}>
+                  {offer.name} · #{offer.id}
+                </option>
+              ))}
+            </select>
+            <button
+              aria-label="Добавить оффер"
+              className="button icon-button"
+              disabled={isSaving || availableOffers.length === 0}
+              type="submit"
+            >
+              <span aria-hidden="true" className="icon">
+                add
+              </span>
+            </button>
+          </form>
+        </section>
+      ) : (
         <p className="empty">
           Этот поток перенаправляет трафик напрямую; офферы не используются.
         </p>
-      ) : (
-        <ul className="offer-stack">
-          {stream.offers.map((offer) => (
-            <li className="offer-row" key={offer.offer_id}>
-              <span>
-                <strong>{offer.name || `Оффер ${offer.offer_id}`}</strong>
-                <span className="muted offer-meta">
-                  Доля {offer.share}% · ID {offer.offer_id}
-                </span>
-              </span>
-              {stream.uses_offers && (
-                <button
-                  aria-label={`Удалить оффер ${offer.name || offer.offer_id}`}
-                  className="button danger icon-button"
-                  disabled={isSaving || stream.offers.length <= 1}
-                  type="button"
-                  onClick={() =>
-                    onOfferChange(stream.id, offer.offer_id, "remove")
-                  }
-                >
-                  <span aria-hidden="true" className="icon">
-                    delete
-                  </span>
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {stream.uses_offers && (
-        <form className="inline-form" onSubmit={addOffer}>
-          <label className="sr-only" htmlFor={`offer-${stream.id}`}>
-            Оффер для добавления
-          </label>
-          <select
-            id={`offer-${stream.id}`}
-            name="offerId"
-            defaultValue=""
-            required
-          >
-            <option value="">Добавить оффер…</option>
-            {availableOffers.map((offer) => (
-              <option key={offer.id} value={offer.id}>
-                {offer.name} · #{offer.id}
-              </option>
-            ))}
-          </select>
-          <button
-            aria-label="Добавить оффер"
-            className="button icon-button"
-            disabled={isSaving || availableOffers.length === 0}
-            type="submit"
-          >
-            <span aria-hidden="true" className="icon">
-              add
-            </span>
-          </button>
-        </form>
       )}
     </article>
   );
