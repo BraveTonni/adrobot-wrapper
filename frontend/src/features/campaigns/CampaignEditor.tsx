@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import type { Campaign, OfferSummary, Stream } from "@/lib/types";
+import { getSafeAdminUrl } from "@/lib/urls";
 
 type Props = {
   campaign: Campaign;
@@ -20,6 +21,8 @@ export function CampaignEditor({
   isSaving,
   onOfferChange,
 }: Props) {
+  const adminUrl = getSafeAdminUrl(campaign.admin_url);
+
   return (
     <section className="panel" aria-labelledby="editor-title">
       <header className="panel-head">
@@ -27,14 +30,20 @@ export function CampaignEditor({
           <h2 id="editor-title">{campaign.name}</h2>
           <span className="muted">Кампания #{campaign.id}</span>
         </div>
-        <a
-          className="button"
-          href={campaign.admin_url}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Открыть в Keitaro ↗
-        </a>
+        {adminUrl ? (
+          <a
+            className="button"
+            href={adminUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Открыть в Keitaro ↗
+          </a>
+        ) : (
+          <span className="muted" role="status">
+            Ссылка Keitaro недоступна
+          </span>
+        )}
       </header>
       {campaign.streams.length === 0 ? (
         <p className="empty">У кампании пока нет потоков.</p>
