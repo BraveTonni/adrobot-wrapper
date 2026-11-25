@@ -13,7 +13,7 @@
 ```bash
 cd backend
 uv sync
-uv run main.py
+uv run uvicorn app.main:app --reload
 ```
 
 Или через корневой Makefile:
