@@ -98,8 +98,12 @@ function StreamCard({
         <h3>{stream.name || `Поток ${index + 1}`}</h3>
         <span className="eyebrow">ID {stream.id}</span>
       </header>
-      {stream.offers.length === 0 ? (
+      {stream.uses_offers && stream.offers.length === 0 ? (
         <p className="empty">В потоке пока нет офферов.</p>
+      ) : !stream.uses_offers ? (
+        <p className="empty">
+          Этот поток перенаправляет трафик напрямую; офферы не используются.
+        </p>
       ) : (
         <ul className="offer-stack">
           {stream.offers.map((offer) => (
