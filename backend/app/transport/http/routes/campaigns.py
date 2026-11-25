@@ -3,10 +3,11 @@
 import hashlib
 import json
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Request
 
 from app.application.campaigns.alias import build_campaign_alias
 from app.application.errors import ExternalServiceError, NotFoundError
+from app.transport.http.audit import audit_actor
 from app.transport.http.deps import (
     CampaignQueriesDep,
     CatalogDep,
@@ -42,6 +43,7 @@ async def list_campaigns(
     response_model=CampaignOut,
 )
 async def create_campaign(
+    request: Request,
     body: CampaignCreate,
     creator: CreatorDep,
     catalog: CatalogDep,
@@ -93,6 +95,7 @@ async def create_campaign(
             domain_id=body.domain_id,
             group_id=body.group_id,
             source_id=body.source_id,
+            actor=audit_actor(request),
         )
     except NotFoundError:
         await idempotency.release(idempotency_key)
@@ -133,13 +136,16 @@ async def get_campaign(
     response_model=StreamOut,
 )
 async def add_offer(
+    request: Request,
     campaign_id: int,
     stream_id: int,
     body: OfferAdd,
     editor: EditorDep,
     catalog: CatalogDep,
 ) -> StreamOut:
-    stream = await editor.add_offer(campaign_id, stream_id, body.offer_id)
+    stream = await editor.add_offer(
+        campaign_id, stream_id, body.offer_id, actor=audit_actor(request)
+    )
     return CampaignResponseFactory.stream(stream, await catalog.offers())
 
 
@@ -148,11 +154,14 @@ async def add_offer(
     response_model=StreamOut,
 )
 async def remove_offer(
+    request: Request,
     campaign_id: int,
     stream_id: int,
     offer_id: int,
     editor: EditorDep,
     catalog: CatalogDep,
 ) -> StreamOut:
-    stream = await editor.remove_offer(campaign_id, stream_id, offer_id)
+    stream = await editor.remove_offer(
+        campaign_id, stream_id, offer_id, actor=audit_actor(request)
+    )
     return CampaignResponseFactory.stream(stream, await catalog.offers())

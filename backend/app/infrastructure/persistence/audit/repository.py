@@ -21,17 +21,25 @@ class SqlAuditRepository:
         self,
         *,
         action: str,
+        actor: str = "unknown",
+        entity_type: str = "operation",
+        entity_id: int | None = None,
         campaign_id: int | None = None,
         stream_id: int | None = None,
         detail: dict[str, object] | None = None,
+        before_payload: dict[str, object] | list[object] | None = None,
     ) -> int:
         async with self._session_factory() as session:
             operation = Operation(
                 action=action,
+                actor=actor[:150],
+                entity_type=entity_type[:40],
+                entity_id=entity_id,
                 status="pending",
                 campaign_id=campaign_id,
                 stream_id=stream_id,
                 detail=detail,
+                before_payload=before_payload,
             )
             session.add(operation)
             try:
@@ -56,6 +64,10 @@ class SqlAuditRepository:
         campaign_id: int | None = None,
         stream_id: int | None = None,
         detail: dict[str, object] | None = None,
+        entity_id: int | None = None,
+        before_payload: dict[str, object] | list[object] | None = None,
+        after_payload: dict[str, object] | list[object] | None = None,
+        error: str | None = None,
     ) -> None:
         async with self._session_factory() as session:
             operation = await session.get(Operation, operation_id)
@@ -66,7 +78,14 @@ class SqlAuditRepository:
                 operation.campaign_id = campaign_id
             if stream_id is not None:
                 operation.stream_id = stream_id
-            operation.detail = detail
+            if entity_id is not None:
+                operation.entity_id = entity_id
+            if detail is not None:
+                operation.detail = detail
+            if before_payload is not None:
+                operation.before_payload = before_payload
+            operation.after_payload = after_payload
+            operation.error = error
             await session.commit()
 
     async def recent(self, limit: int = 50) -> list[AuditRecord]:
@@ -86,4 +105,10 @@ def _to_domain(operation: Operation) -> AuditRecord:
         stream_id=operation.stream_id,
         status=operation.status,
         detail=operation.detail,
+        actor=operation.actor,
+        entity_type=operation.entity_type,
+        entity_id=operation.entity_id,
+        before_payload=operation.before_payload,
+        after_payload=operation.after_payload,
+        error=operation.error,
     )

@@ -14,3 +14,9 @@ class AuditRecord:
     stream_id: int | None
     status: str
     detail: dict[str, Any] | None
+    actor: str = "unknown"
+    entity_type: str = "operation"
+    entity_id: int | None = None
+    before_payload: dict[str, Any] | list[Any] | None = None
+    after_payload: dict[str, Any] | list[Any] | None = None
+    error: str | None = None

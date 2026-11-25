@@ -14,9 +14,13 @@ class AuditRepository(Protocol):
         self,
         *,
         action: str,
+        actor: str = "unknown",
+        entity_type: str = "operation",
+        entity_id: int | None = None,
         campaign_id: int | None = None,
         stream_id: int | None = None,
         detail: dict[str, object] | None = None,
+        before_payload: dict[str, object] | list[object] | None = None,
     ) -> int: ...
 
     async def finish(
@@ -27,6 +31,10 @@ class AuditRepository(Protocol):
         campaign_id: int | None = None,
         stream_id: int | None = None,
         detail: dict[str, object] | None = None,
+        entity_id: int | None = None,
+        before_payload: dict[str, object] | list[object] | None = None,
+        after_payload: dict[str, object] | list[object] | None = None,
+        error: str | None = None,
     ) -> None: ...
 
     async def recent(self, limit: int = 50) -> list[AuditRecord]: ...

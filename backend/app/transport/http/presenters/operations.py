@@ -16,6 +16,12 @@ class OperationResponseFactory:
                 stream_id=record.stream_id,
                 status=record.status,
                 detail=record.detail,
+                actor=record.actor,
+                entity_type=record.entity_type,
+                entity_id=record.entity_id,
+                before_payload=record.before_payload,
+                after_payload=record.after_payload,
+                error=record.error,
             )
             for record in records
         ]

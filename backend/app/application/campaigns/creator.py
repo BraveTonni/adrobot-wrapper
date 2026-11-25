@@ -38,14 +38,17 @@ class CampaignCreator:
         domain_id: int | None = None,
         group_id: int | None = None,
         source_id: int | None = None,
+        actor: str = "unknown",
     ) -> tuple[Campaign, list[Stream]]:
-        await ensure_offer_exists(self._repository, offer_id)
         operation_id = await self._audit.begin(
             action="campaign.create",
+            actor=actor,
+            entity_type="campaign",
             detail={"name": name, "geo": geo, "offer_id": offer_id},
         )
         campaign: Campaign | None = None
         try:
+            await ensure_offer_exists(self._repository, offer_id)
             campaign = await self._repository.create_campaign(
                 CreateCampaign(
                     name=name,
@@ -86,6 +89,7 @@ class CampaignCreator:
                         operation_id,
                         status="unknown",
                         detail={"error": repr(exc), "offer_id": offer_id},
+                        error=repr(exc),
                     )
                 )
             else:
@@ -97,8 +101,9 @@ class CampaignCreator:
             if campaign is None:
                 await self._finish_safely(
                     operation_id,
-                    status="unknown",
+                    status="failed",
                     detail={"error": repr(exc), "offer_id": offer_id},
+                    error=str(exc),
                 )
             else:
                 await self._rollback(
@@ -115,6 +120,30 @@ class CampaignCreator:
                 "geo": geo,
                 "offer_id": offer_id,
                 "stream_ids": [stream.id for stream in streams],
+            },
+            entity_id=campaign.id,
+            after_payload={
+                "campaign": {
+                    "id": campaign.id,
+                    "name": campaign.name,
+                    "alias": campaign.alias,
+                },
+                "streams": [
+                    {
+                        "id": stream.id,
+                        "type": stream.type,
+                        "schema": stream.schema,
+                        "offers": [
+                            {
+                                "offer_id": offer.offer_id,
+                                "share": offer.share,
+                                "state": offer.state,
+                            }
+                            for offer in stream.offers
+                        ],
+                    }
+                    for stream in streams
+                ],
             },
         )
         return campaign, streams
@@ -137,6 +166,7 @@ class CampaignCreator:
             },
         )
         status = "rolled_back"
+        rollback_error: str | None = None
         detail: dict[str, object] = {
             "error": repr(cause),
             "geo": geo,
@@ -146,7 +176,8 @@ class CampaignCreator:
             await self._repository.delete_campaign(campaign.id)
         except Exception as delete_exc:
             status = "rollback_failed"
-            detail["rollback_error"] = str(delete_exc)
+            rollback_error = str(delete_exc)
+            detail["rollback_error"] = rollback_error
             logger.error(
                 "откат не удался: кампания осталась в Keitaro",
                 extra={
@@ -159,6 +190,12 @@ class CampaignCreator:
             status=status,
             campaign_id=campaign.id,
             detail=detail,
+            entity_id=campaign.id,
+            error=(
+                f"{cause}; rollback failed: {rollback_error}"
+                if status == "rollback_failed"
+                else str(cause)
+            ),
         )
 
     async def _finish_safely(
@@ -168,6 +205,9 @@ class CampaignCreator:
         status: str,
         campaign_id: int | None = None,
         detail: dict[str, object] | None = None,
+        entity_id: int | None = None,
+        after_payload: dict[str, object] | list[object] | None = None,
+        error: str | None = None,
     ) -> None:
         try:
             await self._audit.finish(
@@ -175,6 +215,9 @@ class CampaignCreator:
                 status=status,
                 campaign_id=campaign_id,
                 detail=detail,
+                entity_id=entity_id,
+                after_payload=after_payload,
+                error=error,
             )
         except Exception as exc:
             logger.error(
