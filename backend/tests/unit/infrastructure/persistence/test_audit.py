@@ -17,22 +17,25 @@ def session_factory(session: AsyncMock) -> tuple[MagicMock, MagicMock]:
 
 
 @pytest.mark.asyncio
-async def test_record_commits_an_operation() -> None:
+async def test_begin_commits_pending_operation() -> None:
     session = AsyncMock()
-    session.add = MagicMock()
+    session.add = MagicMock(
+        side_effect=lambda operation: setattr(operation, "id", 1)
+    )
     factory, context_manager = session_factory(session)
     repository = SqlAuditRepository(factory)
 
-    await repository.record(
+    operation_id = await repository.begin(
         action="campaign.create",
-        status="ok",
         campaign_id=3,
         detail={"geo": "US"},
     )
 
     operation = session.add.call_args.args[0]
+    assert operation_id == 1
     assert isinstance(operation, Operation)
     assert operation.action == "campaign.create"
+    assert operation.status == "pending"
     assert operation.campaign_id == 3
     assert operation.detail == {"geo": "US"}
     session.commit.assert_awaited_once()
@@ -40,7 +43,7 @@ async def test_record_commits_an_operation() -> None:
 
 
 @pytest.mark.asyncio
-async def test_record_rolls_back_when_commit_fails(
+async def test_begin_rolls_back_and_propagates_commit_failure(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     session = AsyncMock()
@@ -49,7 +52,8 @@ async def test_record_rolls_back_when_commit_fails(
     factory, _ = session_factory(session)
     repository = SqlAuditRepository(factory)
 
-    await repository.record(action="campaign.create", status="ok")
+    with pytest.raises(SQLAlchemyError, match="database down"):
+        await repository.begin(action="campaign.create")
 
     session.rollback.assert_awaited_once()
     assert "не удалось записать операцию" in caplog.text

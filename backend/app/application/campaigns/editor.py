@@ -82,6 +82,22 @@ class CampaignEditor:
             replace(offer, share=share)
             for offer, share in zip(offers, shares, strict=True)
         ]
+        detail: dict[str, object] = {
+            "before": [
+                {"offer_id": offer.offer_id, "share": offer.share}
+                for offer in stream.offers
+            ],
+            "after": [
+                {"offer_id": offer.offer_id, "share": offer.share}
+                for offer in updated_offers
+            ],
+        }
+        operation_id = await self._audit.begin(
+            action=action,
+            campaign_id=stream.campaign_id,
+            stream_id=stream.id,
+            detail=detail,
+        )
         updated = await self._repository.update_stream(
             stream.id, updated_offers
         )
@@ -107,20 +123,17 @@ class CampaignEditor:
                 "shares": [offer.share for offer in updated.offers],
             },
         )
-        await self._audit.record(
-            action=action,
-            status="ok",
-            campaign_id=stream.campaign_id,
-            stream_id=stream.id,
-            detail={
-                "before": [
-                    {"offer_id": offer.offer_id, "share": offer.share}
-                    for offer in stream.offers
-                ],
-                "after": [
-                    {"offer_id": offer.offer_id, "share": offer.share}
-                    for offer in updated.offers
-                ],
-            },
-        )
+        try:
+            await self._audit.finish(
+                operation_id,
+                status="ok",
+                campaign_id=stream.campaign_id,
+                stream_id=stream.id,
+                detail=detail,
+            )
+        except Exception:
+            logger.exception(
+                "не удалось завершить запись аудита",
+                extra={"operation_id": operation_id, "status": "ok"},
+            )
         return updated

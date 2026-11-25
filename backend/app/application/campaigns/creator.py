@@ -4,7 +4,6 @@ import asyncio
 import logging
 
 from app.application.campaigns.dtos import CampaignDefaults, CreateCampaign
-from app.application.errors import ExternalServiceError
 from app.application.offer.validation import ensure_offer_exists
 from app.application.ports import (
     AuditRepository,
@@ -40,47 +39,73 @@ class CampaignCreator:
         source_id: int | None = None,
     ) -> tuple[Campaign, list[Stream]]:
         await ensure_offer_exists(self._repository, offer_id)
-        campaign = await self._repository.create_campaign(
-            CreateCampaign(
-                name=name,
-                domain_id=(
-                    self._defaults.domain_id
-                    if domain_id is None
-                    else domain_id
-                ),
-                group_id=(
-                    self._defaults.group_id if group_id is None else group_id
-                ),
-                traffic_source_id=(
-                    self._defaults.traffic_source_id
-                    if source_id is None
-                    else source_id
-                ),
-            )
+        operation_id = await self._audit.begin(
+            action="campaign.create",
+            detail={"name": name, "geo": geo, "offer_id": offer_id},
         )
-        logger.info(
-            "кампания создана",
-            extra={
-                "campaign_id": campaign.id,
-                "name": campaign.name,
-                "geo": geo,
-                "offer_id": offer_id,
-            },
-        )
-
+        campaign: Campaign | None = None
         try:
+            campaign = await self._repository.create_campaign(
+                CreateCampaign(
+                    name=name,
+                    domain_id=(
+                        self._defaults.domain_id
+                        if domain_id is None
+                        else domain_id
+                    ),
+                    group_id=(
+                        self._defaults.group_id
+                        if group_id is None
+                        else group_id
+                    ),
+                    traffic_source_id=(
+                        self._defaults.traffic_source_id
+                        if source_id is None
+                        else source_id
+                    ),
+                )
+            )
+            logger.info(
+                "кампания создана",
+                extra={
+                    "campaign_id": campaign.id,
+                    "name": campaign.name,
+                    "geo": geo,
+                    "offer_id": offer_id,
+                },
+            )
             streams = await self._streams_creator.create(
                 campaign.id, geo=geo, offer_id=offer_id
             )
         except asyncio.CancelledError as exc:
-            await asyncio.shield(self._rollback(campaign, geo, offer_id, exc))
+            if campaign is None:
+                await asyncio.shield(
+                    self._finish_safely(
+                        operation_id,
+                        status="unknown",
+                        detail={"error": repr(exc), "offer_id": offer_id},
+                    )
+                )
+            else:
+                await asyncio.shield(
+                    self._rollback(operation_id, campaign, geo, offer_id, exc)
+                )
             raise
         except Exception as exc:
-            await self._rollback(campaign, geo, offer_id, exc)
+            if campaign is None:
+                await self._finish_safely(
+                    operation_id,
+                    status="unknown",
+                    detail={"error": repr(exc), "offer_id": offer_id},
+                )
+            else:
+                await self._rollback(
+                    operation_id, campaign, geo, offer_id, exc
+                )
             raise
 
-        await self._audit.record(
-            action="campaign.create",
+        await self._finish_safely(
+            operation_id,
             status="ok",
             campaign_id=campaign.id,
             detail={
@@ -94,6 +119,7 @@ class CampaignCreator:
 
     async def _rollback(
         self,
+        operation_id: int,
         campaign: Campaign,
         geo: str,
         offer_id: int,
@@ -116,7 +142,7 @@ class CampaignCreator:
         }
         try:
             await self._repository.delete_campaign(campaign.id)
-        except ExternalServiceError as delete_exc:
+        except Exception as delete_exc:
             status = "rollback_failed"
             detail["rollback_error"] = str(delete_exc)
             logger.error(
@@ -126,9 +152,30 @@ class CampaignCreator:
                     "rollback_error": str(delete_exc),
                 },
             )
-        await self._audit.record(
-            action="campaign.create",
+        await self._finish_safely(
+            operation_id,
             status=status,
             campaign_id=campaign.id,
             detail=detail,
         )
+
+    async def _finish_safely(
+        self,
+        operation_id: int,
+        *,
+        status: str,
+        campaign_id: int | None = None,
+        detail: dict[str, object] | None = None,
+    ) -> None:
+        try:
+            await self._audit.finish(
+                operation_id,
+                status=status,
+                campaign_id=campaign_id,
+                detail=detail,
+            )
+        except Exception:
+            logger.exception(
+                "не удалось завершить запись аудита",
+                extra={"operation_id": operation_id, "status": status},
+            )

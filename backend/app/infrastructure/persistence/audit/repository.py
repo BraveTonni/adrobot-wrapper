@@ -1,14 +1,10 @@
 """SQLAlchemy-реализация репозитория истории операций."""
 
-import logging
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.domain.operations.entities import AuditRecord
 from app.infrastructure.persistence.models import Operation
-
-logger = logging.getLogger(__name__)
 
 
 class SqlAuditRepository:
@@ -17,30 +13,50 @@ class SqlAuditRepository:
     ) -> None:
         self._session_factory = session_factory
 
-    async def record(
+    async def begin(
         self,
         *,
         action: str,
+        campaign_id: int | None = None,
+        stream_id: int | None = None,
+        detail: dict[str, object] | None = None,
+    ) -> int:
+        async with self._session_factory() as session:
+            operation = Operation(
+                action=action,
+                status="pending",
+                campaign_id=campaign_id,
+                stream_id=stream_id,
+                detail=detail,
+            )
+            session.add(operation)
+            try:
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+            return operation.id
+
+    async def finish(
+        self,
+        operation_id: int,
+        *,
         status: str,
         campaign_id: int | None = None,
         stream_id: int | None = None,
         detail: dict[str, object] | None = None,
     ) -> None:
         async with self._session_factory() as session:
-            session.add(
-                Operation(
-                    action=action,
-                    status=status,
-                    campaign_id=campaign_id,
-                    stream_id=stream_id,
-                    detail=detail,
-                )
-            )
-            try:
-                await session.commit()
-            except Exception:
-                logger.exception("не удалось записать операцию %s", action)
-                await session.rollback()
+            operation = await session.get(Operation, operation_id)
+            if operation is None:
+                raise RuntimeError(f"Audit operation {operation_id} not found")
+            operation.status = status
+            if campaign_id is not None:
+                operation.campaign_id = campaign_id
+            if stream_id is not None:
+                operation.stream_id = stream_id
+            operation.detail = detail
+            await session.commit()
 
     async def recent(self, limit: int = 50) -> list[AuditRecord]:
         async with self._session_factory() as session:

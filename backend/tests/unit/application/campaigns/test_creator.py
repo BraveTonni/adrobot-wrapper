@@ -65,7 +65,8 @@ async def test_create_uses_overrides_and_records_success() -> None:
         )
     )
     streams_creator.create.assert_awaited_once_with(7, geo="US", offer_id=5)
-    assert audit.record.await_args.kwargs["status"] == "ok"
+    assert audit.begin.await_args.kwargs["action"] == "campaign.create"
+    assert audit.finish.await_args.kwargs["status"] == "ok"
     assert result == (campaign, streams)
 
 
@@ -112,7 +113,7 @@ async def test_create_rolls_back_when_stream_setup_fails() -> None:
         await creator.create(name="campaign", geo="US", offer_id=5)
 
     repository.delete_campaign.assert_awaited_once_with(7)
-    assert audit.record.await_args.kwargs["status"] == "rolled_back"
+    assert audit.finish.await_args.kwargs["status"] == "rolled_back"
 
 
 @pytest.mark.asyncio
@@ -128,4 +129,4 @@ async def test_create_records_failed_rollback() -> None:
     with pytest.raises(ExternalServiceError, match="setup failed"):
         await creator.create(name="campaign", geo="US", offer_id=5)
 
-    assert audit.record.await_args.kwargs["status"] == "rollback_failed"
+    assert audit.finish.await_args.kwargs["status"] == "rollback_failed"

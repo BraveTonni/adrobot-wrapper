@@ -10,10 +10,19 @@ from app.domain.operations.entities import AuditRecord
 
 
 class AuditRepository(Protocol):
-    async def record(
+    async def begin(
         self,
         *,
         action: str,
+        campaign_id: int | None = None,
+        stream_id: int | None = None,
+        detail: dict[str, object] | None = None,
+    ) -> int: ...
+
+    async def finish(
+        self,
+        operation_id: int,
+        *,
         status: str,
         campaign_id: int | None = None,
         stream_id: int | None = None,

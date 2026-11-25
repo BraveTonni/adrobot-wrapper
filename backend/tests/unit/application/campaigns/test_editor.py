@@ -73,7 +73,7 @@ async def test_add_offer_preserves_metadata_and_recalculates_shares() -> None:
         ],
     )
     assert sum(item.share for item in updated.offers) == 100
-    assert audit.record.await_args.kwargs["action"] == "stream.offer_add"
+    assert audit.begin.await_args.kwargs["action"] == "stream.offer_add"
 
 
 @pytest.mark.asyncio
@@ -119,7 +119,7 @@ async def test_remove_offer_recalculates_remaining_shares() -> None:
 
     assert [item.offer_id for item in updated.offers] == [1, 3]
     assert [item.share for item in updated.offers] == [50, 50]
-    assert audit.record.await_args.kwargs["action"] == "stream.offer_remove"
+    assert audit.begin.await_args.kwargs["action"] == "stream.offer_remove"
 
 
 @pytest.mark.asyncio
