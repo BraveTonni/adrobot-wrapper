@@ -145,8 +145,19 @@ export function useCampaignWorkspace() {
           stream.id === updatedStream.id ? updatedStream : stream,
         ),
       });
+      const offerName =
+        offers.find((offer) => offer.id === offerId)?.name ??
+        campaign.streams
+          .flatMap((stream) => stream.offers)
+          .find((offer) => offer.offer_id === offerId)?.name ??
+        `#${offerId}`;
+      toast.success(
+        action === "add"
+          ? `Оффер «${offerName}» добавлен.`
+          : `Оффер «${offerName}» удалён.`,
+      );
     } catch (reason) {
-      setError(getErrorMessage(reason));
+      toast.error(getErrorMessage(reason));
     } finally {
       setIsSaving(false);
     }
