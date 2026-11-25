@@ -19,7 +19,11 @@ export function CampaignWorkspace() {
   }
 
   return (
-    <AppShell activeSection={section} onSectionChange={changeSection}>
+    <AppShell
+      activeSection={section}
+      title={section === "create" ? "Новая кампания" : "Управление офферами"}
+      onSectionChange={changeSection}
+    >
       <header className="title-row">
         <div>
           <p className="eyebrow">Кампании / {section === "create" ? "Создание" : "Редактор"}</p>
