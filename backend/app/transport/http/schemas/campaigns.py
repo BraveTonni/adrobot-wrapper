@@ -7,7 +7,7 @@ from app.transport.http.schemas.streams import StreamOut
 
 
 class CampaignCreate(BaseModel):
-    """POST /api/campaigns."""
+    """POST /api/v1/campaigns."""
 
     name: str = Field(min_length=1, max_length=255)
     geo: str

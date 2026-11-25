@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class OfferAdd(BaseModel):
-    """POST /api/campaigns/{id}/streams/{sid}/offers."""
+    """POST /api/v1/campaigns/{id}/streams/{sid}/offers."""
 
     offer_id: int = Field(gt=0)
 

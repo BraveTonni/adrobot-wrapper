@@ -1,16 +1,16 @@
 # HTTP API
 
-Все маршруты имеют префикс `/api`. Входные и выходные данные передаются
+Все маршруты имеют префикс `/api/v1`. Входные и выходные данные передаются
 в JSON. Значения ограничений ниже соответствуют текущим HTTP-схемам.
 
 ## Состояние и справочники
 
 | Метод и путь | Назначение |
 | --- | --- |
-| `GET /api/health` | Проверить подключение к базе данных |
-| `GET /api/references` | Получить домены, группы кампаний и источники трафика |
-| `GET /api/offers?search=&limit=20` | Найти офферы; `limit`: от 1 до 100 |
-| `GET /api/operations` | Последние 50 записей аудита |
+| `GET /api/v1/health` | Проверить подключение к базе данных |
+| `GET /api/v1/references` | Получить домены, группы кампаний и источники трафика |
+| `GET /api/v1/offers?search=&limit=20` | Найти офферы; `limit`: от 1 до 100 |
+| `GET /api/v1/operations` | Последние 50 записей аудита |
 
 Поиск офферов выполняется без учёта регистра по имени и ID.
 
@@ -18,11 +18,11 @@
 
 | Метод и путь | Назначение |
 | --- | --- |
-| `GET /api/campaigns?search=` | Найти кампании по имени среди загруженного списка |
-| `POST /api/campaigns` | Создать кампанию и два потока; ответ `201` |
-| `GET /api/campaigns/{campaign_id}` | Получить кампанию и её потоки |
+| `GET /api/v1/campaigns?search=` | Найти кампании по имени среди загруженного списка |
+| `POST /api/v1/campaigns` | Создать кампанию и два потока; ответ `201` |
+| `GET /api/v1/campaigns/{campaign_id}` | Получить кампанию и её потоки |
 
-Тело `POST /api/campaigns`:
+Тело `POST /api/v1/campaigns`:
 
 ```json
 {
@@ -44,8 +44,8 @@ ISO 3166-1 alpha-2; пробелы удаляются, код приводитс
 
 | Метод и путь | Назначение |
 | --- | --- |
-| `POST /api/campaigns/{campaign_id}/streams/{stream_id}/offers` | Добавить оффер; ответ `201` |
-| `DELETE /api/campaigns/{campaign_id}/streams/{stream_id}/offers/{offer_id}` | Удалить оффер |
+| `POST /api/v1/campaigns/{campaign_id}/streams/{stream_id}/offers` | Добавить оффер; ответ `201` |
+| `DELETE /api/v1/campaigns/{campaign_id}/streams/{stream_id}/offers/{offer_id}` | Удалить оффер |
 
 Тело добавления:
 

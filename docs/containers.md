@@ -59,7 +59,7 @@ Compose включает read-only root filesystem, удаляет capabilities,
 SQLite хранится в отдельном volume `/data`; это единственная постоянная
 записываемая область приложения. Порт API опубликован только на
 `127.0.0.1:8000`. Backend сохраняет исходящий доступ к Keitaro, который нужен
-для работы сервиса. Healthcheck обращается к `/api/health`, а Docker-логи
+для работы сервиса. Healthcheck обращается к `/api/v1/health`, а Docker-логи
 ограничены ротацией.
 
 Compose задаёт защиту контейнера, но не переводит сам Docker daemon в rootless
