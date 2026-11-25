@@ -2,8 +2,50 @@ import { readFile } from "node:fs/promises";
 import { NextRequest, NextResponse } from "next/server";
 
 type RouteContext = { params: Promise<{ path: string[] }> };
+const MAX_REQUEST_BODY_BYTES = 64 * 1024;
+
+async function readLimitedBody(request: Request): Promise<Blob | null> {
+  const contentLength = request.headers.get("content-length");
+  if (contentLength !== null && Number(contentLength) > MAX_REQUEST_BODY_BYTES) {
+    return null;
+  }
+
+  if (!request.body) return new Blob();
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    totalBytes += value.byteLength;
+    if (totalBytes > MAX_REQUEST_BODY_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+
+  const body = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new Blob([body.buffer]);
+}
 
 async function proxyRequest(request: NextRequest, context: RouteContext) {
+  if (request.method !== "GET") {
+    const origin = request.headers.get("origin");
+    if (origin !== request.nextUrl.origin) {
+      return NextResponse.json(
+        { detail: "Cross-origin requests are not allowed" },
+        { status: 403, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+  }
+
   const backendUrl = process.env.BACKEND_API_URL;
   if (!backendUrl) {
     return NextResponse.json(
@@ -17,6 +59,16 @@ async function proxyRequest(request: NextRequest, context: RouteContext) {
     return NextResponse.json(
       { detail: "Токен доступа к API не настроен на сервере." },
       { status: 503 },
+    );
+  }
+
+  const body = request.method === "GET" || request.method === "HEAD"
+    ? undefined
+    : await readLimitedBody(request);
+  if (body === null) {
+    return NextResponse.json(
+      { detail: "Request body exceeds the 64 KiB limit" },
+      { status: 413, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -36,9 +88,7 @@ async function proxyRequest(request: NextRequest, context: RouteContext) {
     const response = await fetch(target, {
       method: request.method,
       headers,
-      body: request.method === "GET" || request.method === "HEAD"
-        ? undefined
-        : await request.text(),
+      body,
       cache: "no-store",
     });
     return new NextResponse(response.body, {
