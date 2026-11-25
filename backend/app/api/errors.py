@@ -3,6 +3,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app.api.status import HttpStatus
 from app.keitaro.errors import KeitaroError
 from app.services.errors import Conflict, NotFound
 
@@ -14,16 +15,16 @@ def register_error_handlers(app: FastAPI) -> None:
 
 
 async def _handle_not_found(request: Request, exc: Exception) -> JSONResponse:
-    return JSONResponse({"detail": str(exc)}, status_code=404)
+    return JSONResponse({"detail": str(exc)}, status_code=HttpStatus.NOT_FOUND)
 
 
 async def _handle_conflict(request: Request, exc: Exception) -> JSONResponse:
-    return JSONResponse({"detail": str(exc)}, status_code=409)
+    return JSONResponse({"detail": str(exc)}, status_code=HttpStatus.CONFLICT)
 
 
 async def _handle_keitaro(request: Request, exc: Exception) -> JSONResponse:
-    status = 502
-    if isinstance(exc, KeitaroError) and exc.status == 404:
-        status = 404
+    status = HttpStatus.BAD_GATEWAY
+    if isinstance(exc, KeitaroError) and exc.status == HttpStatus.NOT_FOUND:
+        status = HttpStatus.NOT_FOUND
 
     return JSONResponse({"detail": str(exc)}, status_code=status)
