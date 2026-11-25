@@ -11,6 +11,4 @@ def get_idempotency(request: Request) -> IdempotencyRepository:
     return cast(IdempotencyRepository, request.app.state.container.idempotency)
 
 
-IdempotencyDep = Annotated[
-    IdempotencyRepository, Depends(get_idempotency)
-]
+IdempotencyDep = Annotated[IdempotencyRepository, Depends(get_idempotency)]

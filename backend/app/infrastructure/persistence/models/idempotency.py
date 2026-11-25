@@ -15,5 +15,7 @@ class IdempotencyRecord(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     response: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
     )

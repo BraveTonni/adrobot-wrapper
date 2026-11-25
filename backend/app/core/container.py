@@ -11,8 +11,8 @@ from app.application.campaigns.queries import CampaignQueries
 from app.application.campaigns.streams import CampaignStreamsCreator
 from app.application.catalog.service import Catalog
 from app.application.health.check import HealthCheck
-from app.application.operations.history import OperationHistory
 from app.application.idempotency import IdempotencyRepository
+from app.application.operations.history import OperationHistory
 from app.config import Settings, settings
 from app.infrastructure.keitaro.client import KeitaroClient
 from app.infrastructure.persistence.audit import SqlAuditRepository

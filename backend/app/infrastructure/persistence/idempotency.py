@@ -35,9 +35,7 @@ class SqlIdempotencyRepository:
                 return self._existing(record, request_hash)
         return "reserved", None
 
-    async def complete(
-        self, key: str, response: dict[str, object]
-    ) -> None:
+    async def complete(self, key: str, response: dict[str, object]) -> None:
         async with self._session_factory() as session:
             record = await session.get(IdempotencyRecord, key)
             if record is None:
