@@ -3,6 +3,22 @@ docs_dir: docs
 site_dir: site
 strict: true
 
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Переключить на светлую тему
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Переключить на тёмную тему
+
 nav:
   - Обзор: index.md
   - Архитектура: architecture.md
@@ -10,6 +26,7 @@ nav:
   - Конфигурация: configuration.md
   - Разработка и запуск: development.md
   - Эксплуатация: operations.md
+  - Участие в разработке: contributing.md
 
 validation:
   links:

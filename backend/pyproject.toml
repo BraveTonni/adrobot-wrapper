@@ -22,7 +22,7 @@ dev = [
     "pytest>=8.4",
     "pytest-asyncio>=1.2",
     "respx>=0.22",
-    "mkdocs>=1.6,<2",
+    "mkdocs-material>=9.6,<10",
 ]
 
 [tool.ruff]
@@ -35,9 +35,11 @@ select = ["E", "F", "I", "UP"]
 [tool.mypy]
 python_version = "3.14"
 strict = true
+exclude = ["^tests/"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
 pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
