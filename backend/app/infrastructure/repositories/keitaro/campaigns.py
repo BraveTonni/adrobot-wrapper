@@ -52,9 +52,7 @@ class KeitaroCampaignRepository:
     async def list_campaigns(
         self, limit: int, offset: int = 0
     ) -> list[Campaign]:
-        campaigns = await execute(
-            self._client.list_campaigns(limit, offset)
-        )
+        campaigns = await execute(self._client.list_campaigns(limit, offset))
         return [campaign_to_domain(campaign) for campaign in campaigns]
 
     async def get_campaign(self, campaign_id: int) -> Campaign:
