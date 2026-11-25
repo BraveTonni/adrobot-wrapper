@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from pydantic import field_validator
@@ -39,6 +40,7 @@ class Settings(BaseSettings):
 
     campaign_search_limit: int = 500
     log_level: str = "INFO"
+    log_directory: Path = Path("../logs")
 
     @field_validator("keitaro_url", "keitaro_admin_url")
     @classmethod

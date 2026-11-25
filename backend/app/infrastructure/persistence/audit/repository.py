@@ -38,9 +38,12 @@ class SqlAuditRepository:
                 await session.commit()
             except Exception:
                 await session.rollback()
-                logger.exception(
+                logger.error(
                     "не удалось записать операцию аудита",
-                    extra={"action": action},
+                    extra={
+                        "action": action,
+                        "exception_type": "database_commit_error",
+                    },
                 )
                 raise
             return operation.id

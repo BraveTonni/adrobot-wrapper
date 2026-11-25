@@ -131,9 +131,13 @@ class CampaignEditor:
                 stream_id=stream.id,
                 detail=detail,
             )
-        except Exception:
-            logger.exception(
+        except Exception as exc:
+            logger.error(
                 "не удалось завершить запись аудита",
-                extra={"operation_id": operation_id, "status": "ok"},
+                extra={
+                    "operation_id": operation_id,
+                    "status": "ok",
+                    "exception_type": type(exc).__name__,
+                },
             )
         return updated

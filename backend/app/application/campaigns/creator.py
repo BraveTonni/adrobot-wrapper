@@ -129,7 +129,7 @@ class CampaignCreator:
             "откат кампании после ошибки",
             extra={
                 "campaign_id": campaign.id,
-                "error": repr(cause),
+                "exception_type": type(cause).__name__,
                 "geo": geo,
                 "offer_id": offer_id,
             },
@@ -149,7 +149,7 @@ class CampaignCreator:
                 "откат не удался: кампания осталась в Keitaro",
                 extra={
                     "campaign_id": campaign.id,
-                    "rollback_error": str(delete_exc),
+                    "rollback_exception_type": type(delete_exc).__name__,
                 },
             )
         await self._finish_safely(
@@ -174,8 +174,12 @@ class CampaignCreator:
                 campaign_id=campaign_id,
                 detail=detail,
             )
-        except Exception:
-            logger.exception(
+        except Exception as exc:
+            logger.error(
                 "не удалось завершить запись аудита",
-                extra={"operation_id": operation_id, "status": status},
+                extra={
+                    "operation_id": operation_id,
+                    "status": status,
+                    "exception_type": type(exc).__name__,
+                },
             )

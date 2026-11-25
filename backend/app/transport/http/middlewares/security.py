@@ -1,11 +1,88 @@
 """CORS and browser-facing security headers for the HTTP API."""
 
+import logging
+import time
+from uuid import uuid4
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.infrastructure.logging.config import request_id_context
+
 _MAX_REQUEST_BODY_BYTES = 64 * 1024
+logger = logging.getLogger(__name__)
+
+
+class RequestLoggingMiddleware:
+    """Log request outcomes using route templates and generated trace IDs."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(
+        self, scope: Scope, receive: Receive, send: Send
+    ) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request_id = uuid4().hex
+        token = request_id_context.set(request_id)
+        started = time.perf_counter()
+        status_code = 500
+        method = scope["method"]
+        route = scope.get("route")
+        route_template = getattr(route, "path", scope.get("path", ""))
+
+        async def track_response(message: Message) -> None:
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+                headers = [
+                    (name, value)
+                    for name, value in message.get("headers", [])
+                    if name.lower() != b"x-request-id"
+                ]
+                headers.append((b"x-request-id", request_id.encode("ascii")))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        try:
+            await self.app(scope, receive, track_response)
+        except Exception as exc:
+            logger.error(
+                "http request raised an unhandled exception",
+                extra={
+                    "http": {
+                        "method": method,
+                        "route": route_template,
+                        "status_code": status_code,
+                        "exception_type": type(exc).__name__,
+                    }
+                },
+            )
+            raise
+        finally:
+            duration_ms = round((time.perf_counter() - started) * 1000, 2)
+            route = scope.get("route")
+            route_template = getattr(route, "path", scope.get("path", ""))
+            extra = {
+                "http": {
+                    "method": method,
+                    "route": route_template,
+                    "status_code": status_code,
+                    "duration_ms": duration_ms,
+                }
+            }
+            if status_code >= 500:
+                logger.error("http request completed", extra=extra)
+            elif status_code >= 400:
+                logger.warning("http request completed", extra=extra)
+            else:
+                logger.info("http request completed", extra=extra)
+            request_id_context.reset(token)
 
 
 class _RequestBodyTooLarge(Exception):
@@ -131,3 +208,4 @@ def install_security_middlewares(
         )
     app.add_middleware(RequestBodyLimitMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RequestLoggingMiddleware)
