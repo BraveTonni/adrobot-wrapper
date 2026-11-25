@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
+
 from app.config import Settings
 
 
@@ -30,3 +33,17 @@ def test_settings_read_api_key_from_secrets_directory(tmp_path: Path) -> None:
     settings = Settings(_env_file=None, _secrets_dir=secrets_dir)
 
     assert settings.keitaro_api_key == "file-secret"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://keitaro.example/admin_api/v1",
+        "https://user:password@keitaro.example/admin_api/v1",
+        "https://keitaro.example/admin_api/v1?token=secret",
+        "not a URL",
+    ],
+)
+def test_settings_reject_insecure_keitaro_urls(url: str) -> None:
+    with pytest.raises(ValidationError, match="Keitaro URLs must use HTTPS"):
+        Settings(_env_file=None, keitaro_url=url)

@@ -1,5 +1,7 @@
 import os
+from urllib.parse import urlsplit
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,6 +39,28 @@ class Settings(BaseSettings):
 
     campaign_search_limit: int = 500
     log_level: str = "INFO"
+
+    @field_validator("keitaro_url", "keitaro_admin_url")
+    @classmethod
+    def require_secure_keitaro_urls(cls, value: str) -> str:
+        try:
+            parsed = urlsplit(value)
+            valid = (
+                parsed.scheme == "https"
+                and parsed.hostname is not None
+                and parsed.username is None
+                and parsed.password is None
+                and not parsed.query
+                and not parsed.fragment
+            )
+        except ValueError:
+            valid = False
+        if not valid:
+            raise ValueError(
+                "Keitaro URLs must use HTTPS and must not contain "
+                "credentials, query parameters, or fragments"
+            )
+        return value
 
 
 settings = Settings()
