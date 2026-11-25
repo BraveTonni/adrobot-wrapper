@@ -71,7 +71,7 @@ class CampaignCreator:
                 "кампания создана",
                 extra={
                     "campaign_id": campaign.id,
-                    "name": campaign.name,
+                    "campaign_name": campaign.name,
                     "geo": geo,
                     "offer_id": offer_id,
                 },
