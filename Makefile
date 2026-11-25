@@ -10,6 +10,7 @@ typecheck:
 	cd backend && uv run mypy .
 
 fmt:
+	cd backend && uv run ruff check --select I --fix .
 	cd backend && uv run ruff format .
 
 run:

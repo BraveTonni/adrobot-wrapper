@@ -27,12 +27,11 @@ jobs:
         working-directory: backend
         run: uv sync --frozen
 
-      - name: Apply ruff format
-        working-directory: backend
-        run: uv run ruff format .
+      - name: Run make fmt
+        run: make fmt
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "style: apply ruff format"
+          commit_message: "style: organize imports and format Python"
           file_pattern: '*.py'
