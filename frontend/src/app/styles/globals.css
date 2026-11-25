@@ -213,6 +213,12 @@ select:focus-visible {
   font-size: 17px;
 }
 
+.panel-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

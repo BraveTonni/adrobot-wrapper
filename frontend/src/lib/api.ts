@@ -19,6 +19,8 @@ export class ApiError extends Error {
   }
 }
 
+type CatalogRefresh = { offers: OfferSummary[]; references: References };
+
 async function request<T>(
   path: string,
   init?: RequestInit,
@@ -61,6 +63,9 @@ async function readErrorMessage(response: Response): Promise<string> {
 
 export const api = {
   references: () => request<References>("/references"),
+
+  refreshCatalog: () =>
+    request<CatalogRefresh>("/catalog/refresh", { method: "POST" }),
 
   offers: (search = "") =>
     request<OfferSummary[]>(

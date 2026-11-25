@@ -25,3 +25,7 @@ class Catalog:
 
     async def references(self) -> References:
         return await self._repository.list_references()
+
+    async def refresh(self) -> tuple[list[Offer], References]:
+        await self._repository.refresh()
+        return await self.offers(), await self.references()

@@ -8,8 +8,10 @@ type Props = {
   references: References | null;
   offers: OfferSummary[];
   isLoading: boolean;
+  isRefreshing: boolean;
   isSaving: boolean;
   onChange: (value: CampaignCreate) => void;
+  onRefresh: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
@@ -18,8 +20,10 @@ export function CampaignCreateForm({
   references,
   offers,
   isLoading,
+  isRefreshing,
   isSaving,
   onChange,
+  onRefresh,
   onSubmit,
 }: Props) {
   function setOptionalId(
@@ -94,7 +98,17 @@ export function CampaignCreateForm({
       <section className="panel" data-aos="fade-up">
         <header className="panel-head">
           <h2>Инфраструктура</h2>
-          <span className="eyebrow">02 / 02</span>
+          <div className="panel-head-actions">
+            <span className="eyebrow">02 / 02</span>
+            <button
+              className="button"
+              disabled={isLoading || isSaving || isRefreshing}
+              type="button"
+              onClick={onRefresh}
+            >
+              {isRefreshing ? "Обновляем…" : "Обновить каталог"}
+            </button>
+          </div>
         </header>
         <div className="grid">
           <ReferenceSelect

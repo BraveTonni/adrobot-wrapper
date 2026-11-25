@@ -23,3 +23,9 @@ class TTLCache[T]:
             self._value = await loader()
             self._expires_at = time.monotonic() + self._ttl
         return self._value
+
+    async def refresh(self, loader: Callable[[], Awaitable[T]]) -> T:
+        async with self._lock:
+            self._value = await loader()
+            self._expires_at = time.monotonic() + self._ttl
+            return self._value

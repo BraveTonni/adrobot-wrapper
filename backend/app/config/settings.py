@@ -35,8 +35,8 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./adrobot.db"
 
     # Кэш справочников, секунды
-    offers_cache_ttl: float = 3600
-    reference_cache_ttl: float = 3600
+    offers_cache_ttl: float = 300
+    reference_cache_ttl: float = 300
 
     campaign_search_limit: int = 500
     log_level: str = "INFO"

@@ -17,3 +17,8 @@ class ReferencesOut(BaseModel):
     domains: list[ReferenceOut]
     groups: list[ReferenceOut]
     sources: list[ReferenceOut]
+
+
+class CatalogRefreshOut(BaseModel):
+    offers: list[OfferSummaryOut]
+    references: ReferencesOut

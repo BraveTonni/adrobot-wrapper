@@ -63,6 +63,7 @@ def build_container(config: Settings = settings) -> ApplicationContainer:
         KeitaroCatalogRepository(client),
         offers_ttl=config.offers_cache_ttl,
         references_ttl=config.reference_cache_ttl,
+        session_factory=session_factory,
     )
     audit_repository = SqlAuditRepository(session_factory)
     health_repository = SqlHealthRepository(session_factory)

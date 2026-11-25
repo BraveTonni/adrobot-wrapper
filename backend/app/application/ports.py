@@ -86,10 +86,14 @@ class CampaignReaderRepository(Protocol):
     async def list_streams(self, campaign_id: int) -> list[Stream]: ...
 
 
-class CatalogRepository(Protocol):
+class CatalogReaderRepository(Protocol):
     async def list_offers(self) -> list[Offer]: ...
 
     async def list_references(self) -> References: ...
+
+
+class CatalogRepository(CatalogReaderRepository, Protocol):
+    async def refresh(self) -> None: ...
 
 
 class HealthRepository(Protocol):

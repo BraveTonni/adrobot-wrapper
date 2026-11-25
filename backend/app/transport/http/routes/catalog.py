@@ -4,9 +4,22 @@ from fastapi import APIRouter, Query
 
 from app.transport.http.deps import CatalogDep
 from app.transport.http.presenters.catalog import CatalogResponseFactory
-from app.transport.http.schemas.catalog import OfferSummaryOut, ReferencesOut
+from app.transport.http.schemas.catalog import (
+    CatalogRefreshOut,
+    OfferSummaryOut,
+    ReferencesOut,
+)
 
 router = APIRouter()
+
+
+@router.post("/catalog/refresh", response_model=CatalogRefreshOut)
+async def refresh_catalog(catalog: CatalogDep) -> CatalogRefreshOut:
+    offers, references = await catalog.refresh()
+    return CatalogRefreshOut(
+        offers=CatalogResponseFactory.offers(offers),
+        references=CatalogResponseFactory.references(references),
+    )
 
 
 @router.get("/references", response_model=ReferencesOut)

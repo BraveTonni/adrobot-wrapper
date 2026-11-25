@@ -61,8 +61,10 @@ export function CampaignWorkspace() {
           references={workspace.references}
           offers={workspace.offers}
           isLoading={workspace.isLoading}
+          isRefreshing={workspace.isRefreshing}
           isSaving={workspace.isSaving}
           onChange={workspace.setForm}
+          onRefresh={workspace.refreshCatalog}
           onSubmit={workspace.createCampaign}
         />
       ) : (

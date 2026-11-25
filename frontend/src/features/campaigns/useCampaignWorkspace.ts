@@ -27,6 +27,7 @@ export function useCampaignWorkspace() {
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const idempotencyKey = useRef<string | null>(null);
 
@@ -75,6 +76,21 @@ export function useCampaignWorkspace() {
   function updateForm(value: CampaignCreate) {
     idempotencyKey.current = null;
     setForm(value);
+  }
+
+  async function refreshCatalog() {
+    setIsRefreshing(true);
+    setError("");
+    try {
+      const refreshed = await api.refreshCatalog();
+      setOffers(refreshed.offers);
+      setReferences(refreshed.references);
+      toast.success("Каталог Keitaro обновлён.");
+    } catch (reason) {
+      toast.error(getErrorMessage(reason));
+    } finally {
+      setIsRefreshing(false);
+    }
   }
 
   async function createCampaign(event: React.FormEvent<HTMLFormElement>) {
@@ -172,11 +188,13 @@ export function useCampaignWorkspace() {
     search,
     error,
     isLoading,
+    isRefreshing,
     isSaving,
     setForm: updateForm,
     setSearch,
     setError,
     createCampaign,
+    refreshCatalog,
     selectCampaign,
     changeOffer,
   };
