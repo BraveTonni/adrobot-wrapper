@@ -81,9 +81,11 @@ class KeitaroClient:
 
     # --- кампании -------------------------------------------------------
 
-    async def list_campaigns(self, limit: int) -> list[Campaign]:
+    async def list_campaigns(
+        self, limit: int, offset: int = 0
+    ) -> list[Campaign]:
         data = await self._request(
-            "GET", "/campaigns", params={"offset": 0, "limit": limit}
+            "GET", "/campaigns", params={"offset": offset, "limit": limit}
         )
         return [Campaign.model_validate(item) for item in parse_list(data)]
 

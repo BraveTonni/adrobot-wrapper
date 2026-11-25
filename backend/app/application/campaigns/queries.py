@@ -9,16 +9,23 @@ class CampaignQueries:
         self._repository = repository
 
     async def search(self, query: str, limit: int) -> list[Campaign]:
-        campaigns = await self._repository.list_campaigns(limit)
         if not query:
-            return campaigns
+            return await self._repository.list_campaigns(limit)
 
         needle = query.lower()
-        return [
-            campaign
-            for campaign in campaigns
-            if needle in campaign.name.lower()
-        ]
+        matches: list[Campaign] = []
+        offset = 0
+        while len(matches) < limit:
+            page = await self._repository.list_campaigns(limit, offset)
+            matches.extend(
+                campaign
+                for campaign in page
+                if needle in campaign.name.casefold()
+            )
+            if len(page) < limit:
+                break
+            offset += len(page)
+        return matches[:limit]
 
     async def get_with_streams(
         self, campaign_id: int

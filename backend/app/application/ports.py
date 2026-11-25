@@ -60,7 +60,9 @@ class CampaignEditingRepository(OfferReader, Protocol):
 
 
 class CampaignReaderRepository(Protocol):
-    async def list_campaigns(self, limit: int) -> list[Campaign]: ...
+    async def list_campaigns(
+        self, limit: int, offset: int = 0
+    ) -> list[Campaign]: ...
 
     async def get_campaign(self, campaign_id: int) -> Campaign: ...
 
