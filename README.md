@@ -39,6 +39,19 @@ make fmt         # ruff format (автоисправление)
 make secret-scan # gitleaks: поиск секретов в коммитах
 ```
 
+## Документация
+
+Исходники документации находятся в [`docs/`](docs/), навигация сайта — в
+[`mkdocs.yml`](mkdocs.yml). Быстрый просмотр и сборка:
+
+```bash
+make docs-serve
+make docs
+```
+
+Подготовка, API, архитектура и эксплуатация описаны в
+[документации проекта](docs/index.md).
+
 Без make:
 
 ```bash

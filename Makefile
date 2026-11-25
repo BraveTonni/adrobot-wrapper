@@ -1,6 +1,6 @@
-.PHONY: check lint typecheck fmt run test secret-scan
+.PHONY: check lint typecheck fmt run test docs docs-serve secret-scan
 
-check: lint typecheck
+check: lint typecheck docs
 
 lint:
 	cd backend && uv run ruff check .
@@ -17,6 +17,12 @@ run:
 
 test:
 	cd backend && uv run pytest
+
+docs:
+	cd backend && uv run mkdocs build --strict -f ../mkdocs.yml
+
+docs-serve:
+	cd backend && uv run mkdocs serve -f ../mkdocs.yml
 
 secret-scan:
 	gitleaks detect --source . --config .gitleaks.toml

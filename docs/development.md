@@ -1,0 +1,60 @@
+# Разработка и локальный запуск
+
+## Требования
+
+- Python 3.14 (устанавливается через `uv` при необходимости).
+- `uv`.
+- Доступный Keitaro Admin API и API-ключ для работы с интеграцией.
+
+## Подготовка
+
+```bash
+cd backend
+uv sync
+cp .env.example .env
+```
+
+Заполните `KEITARO_API_KEY` и при необходимости URL/ID справочников в `.env`.
+Подробности приведены в [конфигурации](configuration.md).
+
+## База и запуск
+
+```bash
+cd backend
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload
+```
+
+Локальный адрес по умолчанию — `http://127.0.0.1:8000`. Интерактивная схема
+FastAPI доступна по `/docs`, OpenAPI JSON — по `/openapi.json`.
+
+Из корня репозитория приложение можно запустить командой `make run`.
+
+## Проверки
+
+```bash
+make check       # Ruff и mypy
+make test        # pytest
+make fmt         # форматирование Python-файлов
+make docs        # строгая сборка документации
+make docs-serve  # локальный сервер документации с автообновлением
+```
+
+После изменения схемы ORM создайте и примените миграцию из `backend/`:
+
+```bash
+uv run alembic revision --autogenerate -m "describe change"
+uv run alembic upgrade head
+```
+
+## Как менять документацию
+
+Markdown-файлы лежат в `docs/`, структура сайта описана в `mkdocs.yml`.
+При добавлении страницы обновите `nav` в `mkdocs.yml` и проверьте ссылки:
+
+```bash
+make docs
+```
+
+CI запускает строгую сборку документации, поэтому предупреждения о битых
+ссылках или некорректной навигации нужно исправить до слияния.
