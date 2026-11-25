@@ -49,6 +49,10 @@ async def test_create_campaign_passes_validated_options_to_use_case() -> None:
     )
     catalog = SimpleNamespace(offers=AsyncMock(return_value=[Offer(2, "O")]))
     config = Settings(_env_file=None, keitaro_admin_url="https://panel/")
+    idempotency = SimpleNamespace(
+        reserve=AsyncMock(return_value=("reserved", None)),
+        complete=AsyncMock(),
+    )
     body = CampaignCreate(
         name="Launch",
         geo="US",
@@ -58,7 +62,9 @@ async def test_create_campaign_passes_validated_options_to_use_case() -> None:
         source_id=13,
     )
 
-    result = await create_campaign(body, creator, catalog, config)
+    result = await create_campaign(
+        body, creator, catalog, config, idempotency, "request-key-1234567890"
+    )
 
     assert result.admin_url == "https://panel/#!/campaign.editor/9"
     assert result.streams[0].offers[0].name == "O"
@@ -70,6 +76,7 @@ async def test_create_campaign_passes_validated_options_to_use_case() -> None:
         group_id=12,
         source_id=13,
     )
+    idempotency.complete.assert_awaited_once()
 
 
 @pytest.mark.asyncio

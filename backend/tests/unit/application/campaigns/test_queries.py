@@ -18,7 +18,7 @@ async def test_search_filters_campaign_names_case_insensitively() -> None:
     result = await queries.search("SPR", 20)
 
     assert result == [Campaign(id=1, name="Spring")]
-    repository.list_campaigns.assert_awaited_once_with(20)
+    repository.list_campaigns.assert_awaited_once_with(20, 0)
 
 
 @pytest.mark.asyncio
