@@ -7,4 +7,4 @@ make frontend-install
 make frontend-dev
 ```
 
-Проверки: `make frontend-lint`, `make frontend-typecheck`, `make frontend-build`. Production запускается через `cd frontend && npm start` после build. Docker образ собирается командой `make frontend-docker-build`; Compose профиль запускается командой `docker compose --profile frontend up --build`. Приложение доступно на `localhost:3000`.
+Проверки: `make frontend-lint`, `make frontend-typecheck`, `make frontend-test`, `make frontend-build`. Production запускается через `cd frontend && npm start` после build. Docker образ собирается командой `make frontend-docker-build`; Compose профиль запускается командой `docker compose --profile frontend up --build`. Приложение доступно на `localhost:3000`.

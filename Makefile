@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help check lint typecheck fmt run up down logs docker-build migrate test docs docs-serve secret-scan frontend-install frontend-dev frontend-lint frontend-typecheck frontend-build frontend-docker-build
+.PHONY: help check lint typecheck fmt run up down logs docker-build migrate test docs docs-serve secret-scan frontend-install frontend-dev frontend-lint frontend-typecheck frontend-test frontend-build frontend-docker-build
 
 help:
 	@echo "Доступные команды:"
@@ -73,6 +73,9 @@ frontend-lint:
 
 frontend-typecheck:
 	cd frontend && npm run typecheck
+
+frontend-test:
+	cd frontend && npm test
 
 frontend-build:
 	cd frontend && npm run build
