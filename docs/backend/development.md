@@ -29,7 +29,7 @@ uv run uvicorn app.main:app --reload
 FastAPI доступна по `/docs`, OpenAPI JSON — по `/openapi.json`.
 
 Команда `make run` из корня запускает приложение через Docker Compose. Настройку
-контейнеров, секретов и миграций см. в [руководстве по контейнерам](containers.md).
+контейнеров, секретов и миграций см. в [общем руководстве по контейнерам](../containers.md).
 
 ## Проверки
 
@@ -64,7 +64,8 @@ uv run alembic upgrade head
 
 ## Как менять документацию
 
-Markdown-файлы лежат в `docs/`, структура сайта описана в `mkdocs.yml`.
+Общие Markdown-файлы лежат в `docs/`, backend-документация — в `docs/backend/`,
+структура сайта описана в `mkdocs.yml`.
 При добавлении страницы обновите `nav` в `mkdocs.yml` и проверьте ссылки:
 
 ```bash

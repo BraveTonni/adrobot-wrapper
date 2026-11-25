@@ -27,14 +27,16 @@ theme:
         name: Переключить на тёмную тему
 
 nav:
-  - Обзор: index.md
-  - Архитектура: architecture.md
-  - HTTP API: api.md
-  - Конфигурация: configuration.md
-  - Разработка и запуск: development.md
-  - Контейнеры: containers.md
-  - Эксплуатация: operations.md
-  - Участие в разработке: contributing.md
+  - Общее:
+      - Обзор: index.md
+      - Контейнеры: containers.md
+      - Участие в разработке: contributing.md
+  - Backend:
+      - Архитектура: backend/architecture.md
+      - HTTP API: backend/api.md
+      - Конфигурация: backend/configuration.md
+      - Разработка и запуск: backend/development.md
+      - Эксплуатация: backend/operations.md
 
 validation:
   links:
