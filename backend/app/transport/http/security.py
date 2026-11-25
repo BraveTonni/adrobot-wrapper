@@ -18,7 +18,7 @@ def require_api_access(
     ],
     config: Annotated[Settings, Depends(get_settings)],
 ) -> None:
-    if not config.api_access_token:
+    if len(config.api_access_token) < 32:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="API access token is not configured",
