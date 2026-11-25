@@ -16,8 +16,8 @@ from app.transport.http.deps import get_settings
 _bearer = HTTPBearer(auto_error=False)
 
 
-class _FailedAuthLimiter:
-    """Bounded per-process window for failed bearer-token attempts."""
+class _WindowRateLimiter:
+    """Bounded per-process sliding window keyed by client address."""
 
     def __init__(self, attempts: int = 8, window_seconds: int = 60) -> None:
         self._attempt_limit = attempts
@@ -25,7 +25,7 @@ class _FailedAuthLimiter:
         self._failures: OrderedDict[str, deque[float]] = OrderedDict()
         self._lock = Lock()
 
-    def record_failure(self, client_key: str) -> int | None:
+    def record_attempt(self, client_key: str) -> int | None:
         now = time.monotonic()
         cutoff = now - self._window_seconds
         with self._lock:
@@ -49,7 +49,8 @@ class _FailedAuthLimiter:
             self._failures.pop(client_key, None)
 
 
-_failed_auth_limiter = _FailedAuthLimiter()
+_failed_auth_limiter = _WindowRateLimiter()
+_request_rate_limiter = _WindowRateLimiter(attempts=300)
 
 
 def require_api_access(
@@ -68,7 +69,7 @@ def require_api_access(
     if credentials is None or not hmac.compare_digest(
         credentials.credentials.encode(), config.api_access_token.encode()
     ):
-        retry_after = _failed_auth_limiter.record_failure(client_key)
+        retry_after = _failed_auth_limiter.record_attempt(client_key)
         if retry_after is not None:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -79,5 +80,12 @@ def require_api_access(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing bearer token",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+    retry_after = _request_rate_limiter.record_attempt(client_key)
+    if retry_after is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many API requests",
+            headers={"Retry-After": str(retry_after)},
         )
     _failed_auth_limiter.clear(client_key)
