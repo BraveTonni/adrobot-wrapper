@@ -27,3 +27,8 @@ mkdocs-site/
 
 # Локальная база
 *.db
+
+# Frontend
+/frontend/node_modules/
+/frontend/.next/
+/frontend/next-env.d.ts
