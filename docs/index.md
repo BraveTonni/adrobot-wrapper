@@ -23,4 +23,7 @@
 - [Контейнеры](containers.md) — запуск всего проекта через Docker Compose.
 - [Участие в разработке](contributing.md) — правила для репозитория.
 
-Документацию frontend добавим в отдельный раздел вместе с самим frontend.
+## Frontend
+
+- [Архитектура и API](frontend/architecture.md) — модули, переменные окружения и интеграция.
+- [Локальный запуск и production](frontend/development.md) — команды разработки, сборка и Compose.

@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help check lint typecheck fmt run up down logs docker-build migrate test docs docs-serve secret-scan
+.PHONY: help check lint typecheck fmt run up down logs docker-build migrate test docs docs-serve secret-scan frontend-install frontend-dev frontend-lint frontend-typecheck frontend-test frontend-build frontend-docker-build
 
 help:
 	@echo "Доступные команды:"
@@ -61,3 +61,24 @@ docs-serve:
 
 secret-scan:
 	gitleaks detect --source . --config .gitleaks.toml
+
+frontend-install:
+	cd frontend && npm ci
+
+frontend-dev:
+	cd frontend && npm run dev
+
+frontend-lint:
+	cd frontend && npm run lint
+
+frontend-typecheck:
+	cd frontend && npm run typecheck
+
+frontend-test:
+	cd frontend && npm test
+
+frontend-build:
+	cd frontend && npm run build
+
+frontend-docker-build:
+	docker build -f frontend/Dockerfile -t adrobot-wrapper-frontend:local frontend

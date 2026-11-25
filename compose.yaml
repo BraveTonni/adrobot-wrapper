@@ -84,6 +84,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    environment:
+      BACKEND_API_URL: http://backend:8000
     ports:
       - "127.0.0.1:3000:3000"
     user: "10001:10001"
