@@ -1,8 +1,8 @@
 # Конфигурация
 
-Настройки объявлены в `backend/app/config.py`. Pydantic Settings читает
-переменные окружения и `.env` из текущей рабочей директории. При запуске
-команд из `Makefile` рабочая директория приложения — `backend/`.
+Настройки объявлены в `backend/app/config/settings.py`. Pydantic Settings читает
+переменные окружения и `.env` из текущей рабочей директории. В Docker Compose
+API-ключ читается из secret-файла в `/run/secrets`.
 
 Скопируйте `backend/.env.example` в `backend/.env` и укажите API-ключ Keitaro.
 Файл `.env` игнорируется Git.

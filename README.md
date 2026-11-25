@@ -22,6 +22,31 @@ uv run uvicorn app.main:app --reload
 make run
 ```
 
+## Docker Compose
+
+Для локального запуска скопируйте `.env.example` в `.env`, укажите
+нечувствительные настройки при необходимости, создайте secret-файл и
+выполните:
+
+```bash
+install -d -m 700 backend/.secrets
+read -rsp "Keitaro API key: " KEITARO_API_KEY
+printf '\n'
+printf '%s' "$KEITARO_API_KEY" > backend/.secrets/keitaro_api_key
+unset KEITARO_API_KEY
+chmod 444 backend/.secrets/keitaro_api_key
+make run
+```
+
+Compose сначала применит миграции, затем запустит backend. API доступно только
+на `127.0.0.1:8000`. Ключ Keitaro монтируется как Compose secret, а не
+передаётся переменной окружения. `.env` и secret-файл нельзя коммитить.
+
+Frontend пока не реализован. Его сервис выключен по умолчанию и подключается
+профилем `frontend` после добавления `frontend/Dockerfile`. Подробности
+безопасности контейнера и управления секретом описаны в
+[руководстве по контейнерам](docs/containers.md).
+
 ## Проверки
 
 Одной командой:

@@ -32,6 +32,7 @@ nav:
   - HTTP API: api.md
   - Конфигурация: configuration.md
   - Разработка и запуск: development.md
+  - Контейнеры: containers.md
   - Эксплуатация: operations.md
   - Участие в разработке: contributing.md
 
