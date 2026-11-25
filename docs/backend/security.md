@@ -1,8 +1,9 @@
 # Доступ к API
 
-Все маршруты `/api/v1/campaigns` и `/api/v1/operations` требуют
-`Authorization: Bearer <API_ACCESS_TOKEN>`. `/health`, `/offers` и `/references`
-остаются доступны без токена для healthcheck и получения справочников.
+Все маршруты `/api/v1/campaigns`, `/api/v1/offers`, `/api/v1/references` и
+`/api/v1/operations` требуют `Authorization: Bearer <API_ACCESS_TOKEN>`.
+`/api/v1/health` остаётся доступен без токена для Docker healthcheck и возвращает
+только общий статус `ok` либо ошибку сервиса.
 
 Задайте случайный токен не короче 32 символов. При прямом запуске передайте его
 через `API_ACCESS_TOKEN` в `backend/.env`. В Compose используйте файл

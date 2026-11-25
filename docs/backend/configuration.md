@@ -4,7 +4,7 @@
 переменные окружения и `.env` из текущей рабочей директории. В Docker Compose
 API-ключ читается из secret-файла в `/run/secrets`.
 
-Маршруты кампаний и `/operations` требуют `API_ACCESS_TOKEN`. Для Compose
+Маршруты кампаний, каталога и `/operations` требуют `API_ACCESS_TOKEN`. Для Compose
 сгенерируйте токен и сохраните его в `backend/.secrets/api_access_token`;
 локальный запуск может читать `API_ACCESS_TOKEN` из `backend/.env`.
 

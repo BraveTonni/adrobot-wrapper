@@ -11,7 +11,9 @@ from app.transport.http.security import require_api_access
 
 router = APIRouter(prefix=API_PREFIX)
 router.include_router(health_router)
-router.include_router(catalog_router)
+router.include_router(
+    catalog_router, dependencies=[Depends(require_api_access)]
+)
 router.include_router(
     campaigns_router, dependencies=[Depends(require_api_access)]
 )
