@@ -29,7 +29,8 @@ uv run uvicorn app.main:app --reload
 Локальный адрес по умолчанию — `http://127.0.0.1:8000`. Интерактивная схема
 FastAPI доступна по `/docs`, OpenAPI JSON — по `/openapi.json`.
 
-Команда `make run` из корня запускает приложение через Docker Compose. Настройку
+Команда `make run` из корня запускает backend и frontend через Docker Compose.
+Настройку
 контейнеров, секретов и миграций см. в [общем руководстве по контейнерам](../containers.md).
 
 ## Проверки

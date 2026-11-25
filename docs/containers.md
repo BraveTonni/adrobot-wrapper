@@ -25,9 +25,10 @@ openssl rand -hex 32 > backend/.secrets/frontend_auth_password
 make run
 ```
 
-`make run` собирает backend и запускает Compose в foreground. Сервис `migrate`
-применяет Alembic-миграции перед запуском API. `make up` запускает стек в фоне,
-`make down` останавливает контейнеры, `make logs` показывает логи backend.
+`make run` собирает backend и frontend и запускает Compose в foreground.
+Сервис `migrate` применяет Alembic-миграции перед запуском API. `make up`
+запускает стек в фоне, `make down` останавливает контейнеры, `make logs`
+показывает логи backend.
 Команда `make docker-build` собирает образ без Compose и не требует API-key.
 JSON-файлы backend доступны на хосте в `logs/`; Compose также продолжает писать
 структурированные события в Docker stdout. На Linux проверьте, что каталог
@@ -47,7 +48,8 @@ backend используют один и тот же secret. Для PostgreSQL �
 Если порт `8000` занят, задайте другой `BACKEND_PORT` в `.env`; публикация
 останется привязана к `127.0.0.1`.
 
-Frontend запускается как дополнительный Compose-профиль:
+Команды `make run` и `make up` включают frontend-профиль. Для запуска Compose
+вручную укажите этот профиль:
 
 ```bash
 docker compose --profile frontend up --build

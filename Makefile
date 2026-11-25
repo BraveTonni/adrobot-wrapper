@@ -36,10 +36,10 @@ fmt:
 	cd backend && uv run ruff format .
 
 run:
-	docker compose up --build
+	docker compose --profile frontend up --build
 
 up:
-	docker compose up --build -d
+	docker compose --profile frontend up --build -d
 
 down:
 	docker compose down
