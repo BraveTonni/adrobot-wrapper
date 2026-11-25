@@ -19,3 +19,9 @@
 и задаёт `Retry-After`. Счётчик хранится в памяти процесса, поэтому в много-
 worker или нескольких экземплярах дополнительно настройте общий rate limit на
 reverse proxy/API gateway.
+
+CORS закрыт по умолчанию. Если браузерный клиент размещён на другом origin,
+задайте `CORS_ALLOWED_ORIGINS` как JSON-массив точных origin, например
+`["https://app.example.com"]`; wildcard `*` запрещён. API также добавляет
+`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+`Permissions-Policy` и CSP для ответов, кроме интерактивных `/docs` и `/redoc`.

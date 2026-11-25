@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     # Local API access: read from API_ACCESS_TOKEN or a secret file.
     api_access_token: str = ""
+    cors_allowed_origins: list[str] = []
 
     # Значения по умолчанию для новых кампаний
     default_domain_id: int = 1813
