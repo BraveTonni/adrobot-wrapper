@@ -169,9 +169,61 @@ export function useCampaignWorkspace() {
         `#${offerId}`;
       toast.success(
         action === "add"
-          ? `Оффер «${offerName}» добавлен.`
-          : `Оффер «${offerName}» удалён.`,
+          ? `Оффер «${offerName}» добавлен в черновик.`
+          : `Оффер «${offerName}» помечен на удаление.`,
       );
+    } catch (reason) {
+      toast.error(getErrorMessage(reason));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function updateStreamDraft(
+    streamId: number,
+    action: "push" | "cancel",
+  ) {
+    if (!campaign) return;
+    setIsSaving(true);
+    try {
+      const updatedStream =
+        action === "push"
+          ? await api.pushStream(campaign.id, streamId)
+          : await api.cancelStreamDraft(campaign.id, streamId);
+      setCampaign({
+        ...campaign,
+        streams: campaign.streams.map((stream) =>
+          stream.id === updatedStream.id ? updatedStream : stream,
+        ),
+      });
+      toast.success(
+        action === "push"
+          ? "Изменения потока опубликованы."
+          : "Черновик потока отменён.",
+      );
+    } catch (reason) {
+      toast.error(getErrorMessage(reason));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function restoreOffer(streamId: number, offerId: number) {
+    if (!campaign) return;
+    setIsSaving(true);
+    try {
+      const updatedStream = await api.restoreOffer(
+        campaign.id,
+        streamId,
+        offerId,
+      );
+      setCampaign({
+        ...campaign,
+        streams: campaign.streams.map((stream) =>
+          stream.id === updatedStream.id ? updatedStream : stream,
+        ),
+      });
+      toast.success("Оффер восстановлен в черновике.");
     } catch (reason) {
       toast.error(getErrorMessage(reason));
     } finally {
@@ -197,5 +249,7 @@ export function useCampaignWorkspace() {
     refreshCatalog,
     selectCampaign,
     changeOffer,
+    updateStreamDraft,
+    restoreOffer,
   };
 }

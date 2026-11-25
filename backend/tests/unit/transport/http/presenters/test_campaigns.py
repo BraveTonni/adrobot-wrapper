@@ -24,7 +24,19 @@ def test_stream_maps_keitaro_fields_and_offer_names() -> None:
         "schema": "landings",
         "uses_offers": True,
         "offers": [
-            {"offer_id": 4, "name": "Offer", "share": 100, "state": "active"}
+            {
+                "offer_id": 4,
+                "name": "Offer",
+                "share": 100,
+                "state": "active",
+                "published_share": 100,
+                "published_state": "active",
+                "draft_share": 100,
+                "draft_state": "active",
+                "is_pinned": False,
+                "is_deleted": False,
+                "has_draft": False,
+            }
         ],
     }
 

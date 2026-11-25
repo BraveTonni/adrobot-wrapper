@@ -83,6 +83,13 @@ export function CampaignWorkspace() {
               offers={workspace.offers}
               isSaving={workspace.isSaving}
               onOfferChange={workspace.changeOffer}
+              onOfferRestore={workspace.restoreOffer}
+              onStreamPush={(streamId) =>
+                workspace.updateStreamDraft(streamId, "push")
+              }
+              onStreamCancel={(streamId) =>
+                workspace.updateStreamDraft(streamId, "cancel")
+              }
             />
           )}
         </>

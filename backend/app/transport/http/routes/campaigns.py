@@ -165,3 +165,58 @@ async def remove_offer(
         campaign_id, stream_id, offer_id, actor=audit_actor(request)
     )
     return CampaignResponseFactory.stream(stream, await catalog.offers())
+
+
+@router.post(
+    "/campaigns/{campaign_id}/streams/{stream_id}/push",
+    response_model=StreamOut,
+)
+async def push_stream(
+    request: Request,
+    campaign_id: int,
+    stream_id: int,
+    editor: EditorDep,
+    catalog: CatalogDep,
+) -> StreamOut:
+    stream = await editor.push(
+        campaign_id, stream_id, actor=audit_actor(request)
+    )
+    return CampaignResponseFactory.stream(stream, await catalog.offers())
+
+
+@router.post(
+    "/campaigns/{campaign_id}/streams/{stream_id}/draft/cancel",
+    response_model=StreamOut,
+)
+async def cancel_stream_draft(
+    request: Request,
+    campaign_id: int,
+    stream_id: int,
+    editor: EditorDep,
+    catalog: CatalogDep,
+) -> StreamOut:
+    stream = await editor.cancel_draft(
+        campaign_id, stream_id, actor=audit_actor(request)
+    )
+    return CampaignResponseFactory.stream(stream, await catalog.offers())
+
+
+@router.post(
+    "/campaigns/{campaign_id}/streams/{stream_id}/offers/{offer_id}/restore",
+    response_model=StreamOut,
+)
+async def restore_offer(
+    request: Request,
+    campaign_id: int,
+    stream_id: int,
+    offer_id: int,
+    editor: EditorDep,
+    catalog: CatalogDep,
+) -> StreamOut:
+    stream = await editor.restore_offer(
+        campaign_id,
+        stream_id,
+        offer_id,
+        actor=audit_actor(request),
+    )
+    return CampaignResponseFactory.stream(stream, await catalog.offers())

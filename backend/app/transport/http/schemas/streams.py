@@ -14,6 +14,13 @@ class OfferOut(BaseModel):
     name: str | None = None
     share: int
     state: str | None = None
+    published_share: int
+    published_state: str | None = None
+    draft_share: int
+    draft_state: str | None = None
+    is_pinned: bool = False
+    is_deleted: bool = False
+    has_draft: bool = False
 
 
 class StreamOut(BaseModel):

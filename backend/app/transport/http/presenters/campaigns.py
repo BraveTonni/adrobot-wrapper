@@ -1,6 +1,7 @@
 """Представление кампаний и потоков в HTTP API."""
 
 from app.domain.campaigns.entities import Campaign, Stream
+from app.domain.campaigns.offer_state import has_draft
 from app.domain.catalog.entities import Offer
 from app.transport.http.schemas.campaigns import (
     CampaignOut,
@@ -44,6 +45,13 @@ class CampaignResponseFactory:
                     name=names.get(offer.offer_id),
                     share=offer.share,
                     state=offer.state,
+                    published_share=offer.published_share or 0,
+                    published_state=offer.published_state,
+                    draft_share=offer.draft_share or 0,
+                    draft_state=offer.draft_state,
+                    is_pinned=offer.is_pinned,
+                    is_deleted=offer.is_deleted,
+                    has_draft=has_draft(offer),
                 )
                 for offer in stream.offers
             ],

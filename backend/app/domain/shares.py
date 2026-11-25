@@ -21,7 +21,9 @@ def is_active_offer(offer: StreamOffer) -> bool:
     )
 
 
-def rebalance_active_offers(offers: list[StreamOffer]) -> list[StreamOffer]:
+def rebalance_active_offers(
+    offers: list[StreamOffer], *, require_active: bool = True
+) -> list[StreamOffer]:
     active_indexes = [
         index for index, offer in enumerate(offers) if is_active_offer(offer)
     ]
@@ -32,6 +34,10 @@ def rebalance_active_offers(offers: list[StreamOffer]) -> list[StreamOffer]:
     movable_indexes = [
         index for index in active_indexes if not offers[index].is_pinned
     ]
+    if not active_indexes:
+        if require_active:
+            validate_offer_shares(updated)
+        return updated
     pinned_share = sum(offers[index].share for index in pinned_indexes)
     if pinned_share > 100:
         raise ValueError("сумма закреплённых долей не может превышать 100")

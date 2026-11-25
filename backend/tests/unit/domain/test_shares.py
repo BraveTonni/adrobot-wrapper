@@ -38,6 +38,35 @@ def test_rejects_more_than_one_hundred_offers() -> None:
         distribute_shares(101)
 
 
+@pytest.mark.parametrize(
+    ("count", "expected"),
+    [
+        (0, []),
+        (1, [100]),
+        (2, [50, 50]),
+        (3, [34, 33, 33]),
+        (7, [15, 15, 14, 14, 14, 14, 14]),
+        (100, [1] * 100),
+    ],
+)
+def test_rebalances_boundary_offer_counts(
+    count: int, expected: list[int]
+) -> None:
+    offers = [
+        StreamOffer(offer_id=index + 1, share=1, state="active")
+        for index in range(count)
+    ]
+
+    if count == 0:
+        with pytest.raises(ValueError, match="хотя бы один"):
+            rebalance_active_offers(offers)
+        return
+
+    assert [
+        offer.share for offer in rebalance_active_offers(offers)
+    ] == expected
+
+
 def test_rebalance_keeps_pinned_share_and_distributes_the_remainder() -> None:
     offers = [
         StreamOffer(offer_id=1, share=40, state="active", is_pinned=True),
@@ -61,6 +90,14 @@ def test_rebalance_rejects_unfillable_pinned_remainder() -> None:
 
     with pytest.raises(ValueError, match="недостаточно долей"):
         rebalance_active_offers(offers)
+
+
+def test_rebalance_allows_pinned_offer_that_already_owns_all_shares() -> None:
+    offers = [
+        StreamOffer(offer_id=1, share=100, state="active", is_pinned=True)
+    ]
+
+    assert rebalance_active_offers(offers) == offers
 
 
 def test_validate_push_requires_active_share_total_of_100_percent() -> None:
@@ -113,6 +150,21 @@ def test_soft_delete_can_be_cancelled_or_restored() -> None:
     cancelled = cancel_draft([deleted])[0]
     assert not cancelled.is_deleted
     assert cancelled.state == "active"
+
+
+def test_deleted_offer_share_difference_is_not_an_unpublished_draft() -> None:
+    offer = StreamOffer(
+        offer_id=1,
+        share=40,
+        state="deleted",
+        published_share=60,
+        published_state="deleted",
+        draft_share=40,
+        draft_state="deleted",
+        is_deleted=True,
+    )
+
+    assert not has_draft(offer)
 
 
 def test_publish_draft_copies_draft_to_published_state() -> None:

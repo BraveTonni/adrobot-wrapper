@@ -19,13 +19,19 @@ src/
 
 ## Интеграция с backend
 
-Браузер вызывает внутренний Next.js route handler `/api/backend/*`. Обработчик передаёт запрос backend, адрес которого берётся из серверной переменной `BACKEND_API_URL`, и добавляет Bearer-токен из серверной переменной `API_ACCESS_TOKEN` либо файла `API_ACCESS_TOKEN_FILE`. В Compose токен доступен frontend как secret-файл. Значение токена не передаётся браузеру. Проксируются `GET /api/v1/references`, `GET /offers`, `GET /campaigns?search=`, `GET /campaigns/{id}`, `POST /campaigns` и POST/DELETE для офферов потоков. Форматы соответствуют Pydantic-схемам backend. Ошибки API централизованно преобразуются в сообщения для пользователя.
+Браузер вызывает внутренний Next.js route handler `/api/backend/*`. Обработчик передаёт запрос backend, адрес которого берётся из серверной переменной `BACKEND_API_URL`, и добавляет Bearer-токен из серверной переменной `API_ACCESS_TOKEN` либо файла `API_ACCESS_TOKEN_FILE`. В Compose токен доступен frontend как secret-файл. Значение токена не передаётся браузеру. Проксируются `GET /api/v1/references`, `GET /offers`, `GET /campaigns?search=`, `GET /campaigns/{id}`, `POST /campaigns`, POST/DELETE для офферов и POST-действия восстановления, публикации и отмены черновика. Форматы соответствуют Pydantic-схемам backend. Ошибки API централизованно преобразуются в сообщения для пользователя.
 
-Proxy принимает только same-origin POST/DELETE, ограничивает тело 64 KiB и не
-передаёт browser credentials backend. В production публикуйте frontend только
+Proxy принимает только same-origin POST/DELETE, включая действия публикации и
+отмены черновика, ограничивает тело 64 KiB и не передаёт browser credentials
+backend. В production публикуйте frontend только
 за HTTPS reverse proxy.
 
 Создание кампании также отправляет уникальный `Idempotency-Key`. При повторной отправке неизменённой формы используется тот же ключ, чтобы backend не создал дубль после сетевого сбоя.
+
+`CampaignEditor` показывает опубликованные и черновые доли отдельно. Добавление,
+удаление и восстановление меняют локальный черновик. Кнопка публикации отправляет
+его в Keitaro, а отмена возвращает последнее опубликованное состояние. Backend
+проверяет сумму долей перед публикацией.
 
 Переменная `BACKEND_API_URL` читается Next.js на сервере. Keitaro API key остаётся исключительно в backend и не передаётся браузеру.
 

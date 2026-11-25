@@ -13,6 +13,9 @@ type Props = {
     offerId: number,
     action: "add" | "remove",
   ) => void;
+  onOfferRestore: (streamId: number, offerId: number) => void;
+  onStreamPush: (streamId: number) => void;
+  onStreamCancel: (streamId: number) => void;
 };
 
 export function CampaignEditor({
@@ -20,6 +23,9 @@ export function CampaignEditor({
   offers,
   isSaving,
   onOfferChange,
+  onOfferRestore,
+  onStreamPush,
+  onStreamCancel,
 }: Props) {
   const adminUrl = getSafeAdminUrl(campaign.admin_url);
 
@@ -57,6 +63,9 @@ export function CampaignEditor({
               offers={offers}
               isSaving={isSaving}
               onOfferChange={onOfferChange}
+              onOfferRestore={onOfferRestore}
+              onStreamPush={onStreamPush}
+              onStreamCancel={onStreamCancel}
             />
           ))}
         </div>
@@ -71,6 +80,9 @@ type StreamCardProps = {
   offers: OfferSummary[];
   isSaving: boolean;
   onOfferChange: Props["onOfferChange"];
+  onOfferRestore: Props["onOfferRestore"];
+  onStreamPush: Props["onStreamPush"];
+  onStreamCancel: Props["onStreamCancel"];
 };
 
 function StreamCard({
@@ -79,6 +91,9 @@ function StreamCard({
   offers,
   isSaving,
   onOfferChange,
+  onOfferRestore,
+  onStreamPush,
+  onStreamCancel,
 }: StreamCardProps) {
   function addOffer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -91,6 +106,7 @@ function StreamCard({
   const availableOffers = offers.filter(
     (offer) => !stream.offers.some((current) => current.offer_id === offer.id),
   );
+  const hasDraft = stream.offers.some((offer) => offer.has_draft);
 
   return (
     <article className="stream-card">
@@ -108,24 +124,43 @@ function StreamCard({
               {stream.offers.map((offer) => (
                 <li className="offer-row" key={offer.offer_id}>
                   <span>
-                    <strong>{offer.name || `Оффер ${offer.offer_id}`}</strong>
+                    <strong>
+                      {offer.name || `Оффер ${offer.offer_id}`}
+                      {offer.is_pinned ? " · закреплён" : ""}
+                    </strong>
                     <span className="muted offer-meta">
-                      Доля {offer.share}% · ID {offer.offer_id}
+                      Опубликовано {offer.published_share}% · черновик{" "}
+                      {offer.is_deleted ? "удалён" : `${offer.draft_share}%`} · ID{" "}
+                      {offer.offer_id}
                     </span>
                   </span>
-                  <button
-                    aria-label={`Удалить оффер ${offer.name || offer.offer_id}`}
-                    className="button danger icon-button"
-                    disabled={isSaving || stream.offers.length <= 1}
-                    type="button"
-                    onClick={() =>
-                      onOfferChange(stream.id, offer.offer_id, "remove")
-                    }
-                  >
-                    <span aria-hidden="true" className="icon">
-                      delete
-                    </span>
-                  </button>
+                  {offer.is_deleted ? (
+                    <button
+                      aria-label={`Восстановить оффер ${offer.name || offer.offer_id}`}
+                      className="button icon-button"
+                      disabled={isSaving}
+                      type="button"
+                      onClick={() => onOfferRestore(stream.id, offer.offer_id)}
+                    >
+                      <span aria-hidden="true" className="icon">
+                        restore
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      aria-label={`Удалить оффер ${offer.name || offer.offer_id}`}
+                      className="button danger icon-button"
+                      disabled={isSaving}
+                      type="button"
+                      onClick={() =>
+                        onOfferChange(stream.id, offer.offer_id, "remove")
+                      }
+                    >
+                      <span aria-hidden="true" className="icon">
+                        delete
+                      </span>
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -158,6 +193,26 @@ function StreamCard({
               </span>
             </button>
           </form>
+          {hasDraft && (
+            <div className="inline-form">
+              <button
+                className="button primary"
+                disabled={isSaving}
+                type="button"
+                onClick={() => onStreamPush(stream.id)}
+              >
+                Опубликовать изменения
+              </button>
+              <button
+                className="button"
+                disabled={isSaving}
+                type="button"
+                onClick={() => onStreamCancel(stream.id)}
+              >
+                Отменить черновик
+              </button>
+            </div>
+          )}
         </section>
       ) : (
         <p className="empty">

@@ -18,6 +18,20 @@ def build_editor() -> tuple[CampaignEditor, AsyncMock, AsyncMock]:
     return CampaignEditor(repository, audit), repository, audit
 
 
+def build_draft_editor() -> tuple[
+    CampaignEditor, AsyncMock, AsyncMock, AsyncMock
+]:
+    repository = AsyncMock()
+    audit = AsyncMock()
+    drafts = AsyncMock()
+    return (
+        CampaignEditor(repository, audit, drafts=drafts),
+        repository,
+        audit,
+        drafts,
+    )
+
+
 def offer_stream(offers: list[StreamOffer] | None = None) -> Stream:
     return Stream(
         id=11,
@@ -57,6 +71,7 @@ async def test_add_offer_preserves_metadata_and_recalculates_shares() -> None:
                 offer_id=2,
                 share=50,
                 state="active",
+                published_state="deleted",
                 published_share=0,
                 draft_share=50,
             ),
@@ -83,6 +98,7 @@ async def test_add_offer_preserves_metadata_and_recalculates_shares() -> None:
                 offer_id=2,
                 share=50,
                 state="active",
+                published_state="deleted",
                 published_share=0,
                 draft_share=50,
             ),
@@ -226,3 +242,139 @@ async def test_push_omits_soft_deleted_offers_and_validates_active_sum() -> (
             )
         ],
     )
+
+
+@pytest.mark.asyncio
+async def test_draft_add_does_not_update_keitaro_until_push() -> None:
+    editor, repository, _, drafts = build_draft_editor()
+    repository.get_offer.return_value = Offer(id=2, name="Offer")
+    drafts.get_stream.return_value = offer_stream(
+        [StreamOffer(offer_id=1, share=100, state="active")]
+    )
+
+    updated = await editor.add_offer(7, 11, 2)
+
+    assert [offer.share for offer in updated.offers] == [50, 50]
+    assert updated.offers[1].published_state == "deleted"
+    assert updated.offers[1].published_share == 0
+    drafts.save_offers.assert_awaited_once_with(11, updated.offers)
+    repository.update_stream.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_draft_remove_allows_empty_active_set_and_can_be_cancelled() -> (
+    None
+):
+    editor, repository, _, drafts = build_draft_editor()
+    drafts.get_stream.return_value = offer_stream(
+        [StreamOffer(offer_id=1, share=100, state="active")]
+    )
+
+    deleted = await editor.remove_offer(7, 11, 1)
+
+    assert len(deleted.offers) == 1
+    assert deleted.offers[0].is_deleted
+    repository.update_stream.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_push_publishes_local_draft_and_omits_soft_deleted_offers() -> (
+    None
+):
+    editor, repository, _, drafts = build_draft_editor()
+    draft = offer_stream(
+        [
+            StreamOffer(
+                offer_id=1,
+                share=100,
+                state="active",
+                published_share=50,
+                draft_share=100,
+            ),
+            StreamOffer(
+                offer_id=2,
+                share=50,
+                state="deleted",
+                is_deleted=True,
+            ),
+        ]
+    )
+    published = offer_stream(
+        [StreamOffer(offer_id=1, share=100, state="active")]
+    )
+    drafts.get_stream.side_effect = [draft, published]
+    repository.update_stream.return_value = published
+
+    result = await editor.push(7, 11)
+
+    repository.update_stream.assert_awaited_once_with(
+        11,
+        [
+            StreamOffer(
+                offer_id=1,
+                share=100,
+                state="active",
+                published_share=50,
+                draft_share=100,
+            )
+        ],
+    )
+    drafts.sync_stream.assert_awaited_once_with(published)
+    assert result.offers == published.offers
+
+
+@pytest.mark.asyncio
+async def test_push_rejects_empty_active_set_before_keitaro_request() -> None:
+    editor, repository, _, drafts = build_draft_editor()
+    drafts.get_stream.return_value = offer_stream(
+        [
+            StreamOffer(
+                offer_id=1,
+                share=100,
+                state="deleted",
+                is_deleted=True,
+            )
+        ]
+    )
+
+    with pytest.raises(ConflictError, match="хотя бы один оффер"):
+        await editor.push(7, 11)
+
+    repository.update_stream.assert_not_awaited()
+    drafts.sync_stream.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_cancel_draft_restores_and_discards_new_offer() -> None:
+    editor, _, _, drafts = build_draft_editor()
+    drafts.get_stream.return_value = offer_stream(
+        [
+            StreamOffer(
+                offer_id=1,
+                share=100,
+                state="deleted",
+                published_share=100,
+                published_state="active",
+                draft_share=100,
+                draft_state="deleted",
+                is_deleted=True,
+            ),
+            StreamOffer(
+                offer_id=2,
+                share=100,
+                state="active",
+                published_share=0,
+                published_state="deleted",
+                draft_share=100,
+                draft_state="active",
+            ),
+        ]
+    )
+
+    updated = await editor.cancel_draft(7, 11)
+
+    assert len(updated.offers) == 1
+    assert updated.offers[0].offer_id == 1
+    assert updated.offers[0].state == "active"
+    assert not updated.offers[0].is_deleted
+    drafts.save_offers.assert_awaited_once_with(11, updated.offers)

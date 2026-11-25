@@ -8,9 +8,17 @@ from app.domain.shares import validate_offer_shares
 
 
 def has_draft(offer: StreamOffer) -> bool:
+    deleted_in_both_states = (
+        offer.is_deleted
+        and offer.draft_state == "deleted"
+        and offer.published_state == "deleted"
+    )
     return (
         offer.draft_state != offer.published_state
-        or offer.draft_share != offer.published_share
+        or (
+            not deleted_in_both_states
+            and offer.draft_share != offer.published_share
+        )
         or offer.is_deleted != (offer.published_state == "deleted")
     )
 
@@ -26,6 +34,11 @@ def cancel_draft(offers: list[StreamOffer]) -> list[StreamOffer]:
             is_deleted=offer.published_state == "deleted",
         )
         for offer in offers
+        # A zero published share marks an offer created only in the local
+        # draft. Cancelling that draft should discard the row entirely.
+        if not (
+            offer.published_state == "deleted" and offer.published_share == 0
+        )
     ]
 
 

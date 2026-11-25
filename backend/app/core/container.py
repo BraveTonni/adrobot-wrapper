@@ -114,9 +114,14 @@ def build_container(config: Settings = settings) -> ApplicationContainer:
             snapshots=snapshot_repository,
         ),
         campaign_editor=CampaignEditor(
-            campaign_repository, audit_repository, catalog=catalog_service
+            campaign_repository,
+            audit_repository,
+            catalog=catalog_service,
+            drafts=snapshot_repository,
         ),
-        campaign_queries=CampaignQueries(campaign_repository),
+        campaign_queries=CampaignQueries(
+            campaign_repository, snapshots=snapshot_repository
+        ),
         operation_history=OperationHistory(audit_repository),
         idempotency=SqlIdempotencyRepository(session_factory),
         health_check=HealthCheck(health_repository),

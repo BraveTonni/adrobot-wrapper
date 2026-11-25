@@ -99,4 +99,22 @@ export const api = {
       `/campaigns/${campaignId}/streams/${streamId}/offers/${offerId}`,
       { method: "DELETE" },
     ),
+
+  restoreOffer: (campaignId: number, streamId: number, offerId: number) =>
+    request<Stream>(
+      `/campaigns/${campaignId}/streams/${streamId}/offers/${offerId}/restore`,
+      { method: "POST" },
+    ),
+
+  pushStream: (campaignId: number, streamId: number) =>
+    request<Stream>(
+      `/campaigns/${campaignId}/streams/${streamId}/push`,
+      { method: "POST" },
+    ),
+
+  cancelStreamDraft: (campaignId: number, streamId: number) =>
+    request<Stream>(
+      `/campaigns/${campaignId}/streams/${streamId}/draft/cancel`,
+      { method: "POST" },
+    ),
 };

@@ -1,12 +1,20 @@
 """Сценарии чтения кампаний и их потоков."""
 
-from app.application.ports import CampaignReaderRepository
+from app.application.ports import (
+    CampaignReaderRepository,
+    CampaignSnapshotRepository,
+)
 from app.domain.campaigns.entities import Campaign, Stream
 
 
 class CampaignQueries:
-    def __init__(self, repository: CampaignReaderRepository) -> None:
+    def __init__(
+        self,
+        repository: CampaignReaderRepository,
+        snapshots: CampaignSnapshotRepository | None = None,
+    ) -> None:
         self._repository = repository
+        self._snapshots = snapshots
 
     async def search(self, query: str, limit: int) -> list[Campaign]:
         if not query:
@@ -32,4 +40,7 @@ class CampaignQueries:
     ) -> tuple[Campaign, list[Stream]]:
         campaign = await self._repository.get_campaign(campaign_id)
         streams = await self._repository.list_streams(campaign_id)
+        if self._snapshots is not None:
+            await self._snapshots.sync(campaign, streams)
+            streams = await self._snapshots.list_streams(campaign_id)
         return campaign, streams

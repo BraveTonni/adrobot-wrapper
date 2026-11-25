@@ -10,10 +10,13 @@ from app.domain.campaigns.entities import Campaign, Stream, StreamOffer
 from app.domain.catalog.entities import Offer
 from app.transport.http.routes.campaigns import (
     add_offer,
+    cancel_stream_draft,
     create_campaign,
     get_campaign,
     list_campaigns,
+    push_stream,
     remove_offer,
+    restore_offer,
 )
 from app.transport.http.schemas.campaigns import CampaignCreate
 from app.transport.http.schemas.streams import OfferAdd
@@ -153,3 +156,43 @@ async def test_remove_offer_returns_stream_response() -> None:
 
     assert result.id == 2
     editor.remove_offer.assert_awaited_once_with(1, 2, 3, actor="qa-user")
+
+
+@pytest.mark.asyncio
+async def test_push_stream_passes_actor_to_editor() -> None:
+    stream = Stream(id=2, campaign_id=1, name="Offers", schema="landings")
+    editor = SimpleNamespace(push=AsyncMock(return_value=stream))
+    catalog = SimpleNamespace(offers=AsyncMock(return_value=[]))
+
+    result = await push_stream(request_with_actor(), 1, 2, editor, catalog)
+
+    assert result.id == 2
+    editor.push.assert_awaited_once_with(1, 2, actor="qa-user")
+
+
+@pytest.mark.asyncio
+async def test_cancel_stream_draft_passes_actor_to_editor() -> None:
+    stream = Stream(id=2, campaign_id=1, name="Offers", schema="landings")
+    editor = SimpleNamespace(cancel_draft=AsyncMock(return_value=stream))
+    catalog = SimpleNamespace(offers=AsyncMock(return_value=[]))
+
+    result = await cancel_stream_draft(
+        request_with_actor(), 1, 2, editor, catalog
+    )
+
+    assert result.id == 2
+    editor.cancel_draft.assert_awaited_once_with(1, 2, actor="qa-user")
+
+
+@pytest.mark.asyncio
+async def test_restore_offer_passes_actor_to_editor() -> None:
+    stream = Stream(id=2, campaign_id=1, name="Offers", schema="landings")
+    editor = SimpleNamespace(restore_offer=AsyncMock(return_value=stream))
+    catalog = SimpleNamespace(offers=AsyncMock(return_value=[]))
+
+    result = await restore_offer(
+        request_with_actor(), 1, 2, 3, editor, catalog
+    )
+
+    assert result.id == 2
+    editor.restore_offer.assert_awaited_once_with(1, 2, 3, actor="qa-user")

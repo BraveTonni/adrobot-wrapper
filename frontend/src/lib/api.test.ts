@@ -49,6 +49,33 @@ describe("API client", () => {
     });
   });
 
+  it("targets draft, restore, and publish endpoints", async () => {
+    const stream = {
+      id: 11,
+      name: "Offers",
+      type: "default",
+      schema: "landings",
+      uses_offers: true,
+      offers: [],
+    };
+    const fetchMock = vi.fn().mockImplementation(() => Response.json(stream));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.addOffer(7, 11, 42);
+    await api.removeOffer(7, 11, 42);
+    await api.restoreOffer(7, 11, 42);
+    await api.pushStream(7, 11);
+    await api.cancelStreamDraft(7, 11);
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
+      ["/api/backend/v1/campaigns/7/streams/11/offers", "POST"],
+      ["/api/backend/v1/campaigns/7/streams/11/offers/42", "DELETE"],
+      ["/api/backend/v1/campaigns/7/streams/11/offers/42/restore", "POST"],
+      ["/api/backend/v1/campaigns/7/streams/11/push", "POST"],
+      ["/api/backend/v1/campaigns/7/streams/11/draft/cancel", "POST"],
+    ]);
+  });
+
   it("uses the backend detail as the API error message", async () => {
     vi.stubGlobal(
       "fetch",
