@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help check lint typecheck fmt run up down logs docker-build migrate test docs docs-serve secret-scan frontend-install frontend-dev frontend-lint frontend-typecheck frontend-test frontend-build frontend-check frontend-docker-build
+.PHONY: help check lint typecheck fmt run up down logs docker-build migrate backend-install backend-dev alembic test docs docs-serve secret-scan frontend-install frontend-dev frontend-lint frontend-typecheck frontend-test frontend-build frontend-check frontend-docker-build
 
 help:
 	@echo "Доступные команды:"
@@ -10,6 +10,9 @@ help:
 	@echo "  make logs         Показать логи backend"
 	@echo "  make docker-build Собрать backend-образ без запуска Compose"
 	@echo "  make migrate      Выполнить миграции базы данных"
+	@echo "  make backend-install Установить зависимости backend для локальной разработки"
+	@echo "  make backend-dev     Запустить backend локально"
+	@echo "  make alembic ARGS=... Выполнить команду Alembic локально"
 	@echo "  make check        Проверить backend, frontend, тесты и документацию"
 	@echo "  make lint         Запустить Ruff"
 	@echo "  make typecheck    Запустить mypy"
@@ -52,6 +55,15 @@ docker-build:
 
 migrate:
 	docker compose run --rm migrate
+
+backend-install:
+	cd backend && uv sync
+
+backend-dev:
+	cd backend && uv run uvicorn app.main:app --reload
+
+alembic:
+	cd backend && uv run alembic $(ARGS)
 
 test:
 	cd backend && uv run pytest

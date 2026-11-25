@@ -5,22 +5,58 @@
 
 ## Требования
 
+- GNU Make
 - [uv](https://docs.astral.sh/uv/)
-- Python 3.14 (uv подтянет сам)
+- Python 3.14 (Makefile использует uv для локального окружения backend)
+- Docker Compose для запуска всего приложения через `make run`
 
 ## Запуск
 
+Для локального запуска backend создайте файл настроек и заполните ключ Keitaro
+и токен доступа к API:
+
 ```bash
-cd backend
-uv sync
-uv run uvicorn app.main:app --reload
+cp backend/.env.example backend/.env
 ```
 
-Или через корневой Makefile:
+В `backend/.env` укажите `KEITARO_API_KEY` и задайте случайный
+`API_ACCESS_TOKEN` длиной не менее 32 символов. Токен можно сгенерировать
+командой `openssl rand -hex 32`. Не коммитьте файл `.env`.
+
+Затем из корня репозитория выполните:
+
+```bash
+make backend-install
+make alembic ARGS="upgrade head"
+make backend-dev
+```
+
+Backend будет доступен на `http://127.0.0.1:8000`. Чтобы запустить полный
+интерфейс и backend в Docker Compose, используйте:
 
 ```bash
 make run
 ```
+
+Для тестового стенда Keitaro называйте создаваемые кампании с префиксом
+`test_<фамилия>_`, например `test_ivanov_geo_us`.
+
+### Миграции базы данных
+
+Команда `make alembic` передаёт аргументы в Alembic и использует настройки из
+`backend/.env`. Запускайте её из корня репозитория:
+
+```bash
+make alembic ARGS="upgrade head"
+make alembic ARGS="current"
+make alembic ARGS="downgrade -1"
+make alembic ARGS="downgrade -3"
+make alembic ARGS="revision --autogenerate -m 'describe change'"
+```
+
+`downgrade -N` откатывает базу на `N` ревизий. Для создания ревизии сначала
+обновите модели, затем запустите `revision --autogenerate` с кратким описанием
+изменения.
 
 ## Docker Compose
 
@@ -80,9 +116,8 @@ Frontend на Next.js также доступен для разработки к
 Одной командой:
 
 ```bash
-cd backend && uv sync --locked
-cd frontend && npm ci
-cd ..
+make backend-install
+make frontend-install
 make check
 ```
 
@@ -117,26 +152,6 @@ make docs
 [документации проекта](docs/index.md).
 Требования к изменениям и тестам находятся в
 [CONTRIBUTING.md](CONTRIBUTING.md).
-
-Без make (backend):
-
-```bash
-cd backend
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy .
-uv run pytest
-```
-
-Без make (frontend):
-
-```bash
-cd frontend
-npm run lint
-npm run typecheck
-npm test
-npm run build
-```
 
 CI (GitHub Actions) гоняет `make check` на каждый push в `main` и на каждый PR.
 
