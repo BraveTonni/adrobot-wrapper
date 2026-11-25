@@ -1,4 +1,4 @@
-.PHONY: check lint typecheck fmt run secret-scan
+.PHONY: check lint typecheck fmt run test secret-scan
 
 check: lint typecheck
 
@@ -13,7 +13,10 @@ fmt:
 	cd backend && uv run ruff format .
 
 run:
-	cd backend && uv run main.py
+	cd backend && uv run python -m uvicorn app.main:app --reload
+
+test:
+	cd backend && uv run pytest
 
 secret-scan:
 	gitleaks detect --source . --config .gitleaks.toml
