@@ -1,0 +1,104 @@
+name: adrobot-wrapper
+
+services:
+  migrate:
+    image: adrobot-wrapper-backend:local
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////data/adrobot.db
+    volumes:
+      - backend_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 0.5
+    restart: "no"
+
+  backend:
+    image: adrobot-wrapper-backend:local
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////data/adrobot.db
+      PYDANTIC_SECRETS_DIR: /run/secrets
+      KEITARO_URL: ${KEITARO_URL:-https://keitaro-for-tests.etolegko.com/admin_api/v1}
+      KEITARO_ADMIN_URL: ${KEITARO_ADMIN_URL:-https://keitaro-for-tests.etolegko.com/admin}
+      KEITARO_TIMEOUT: ${KEITARO_TIMEOUT:-15}
+      DEFAULT_DOMAIN_ID: ${DEFAULT_DOMAIN_ID:-1813}
+      DEFAULT_GROUP_ID: ${DEFAULT_GROUP_ID:-10332}
+      DEFAULT_SOURCE_ID: ${DEFAULT_SOURCE_ID:-836}
+      GEO_REDIRECT_URL: ${GEO_REDIRECT_URL:-https://google.com}
+      OFFERS_CACHE_TTL: ${OFFERS_CACHE_TTL:-3600}
+      REFERENCE_CACHE_TTL: ${REFERENCE_CACHE_TTL:-3600}
+      CAMPAIGN_SEARCH_LIMIT: ${CAMPAIGN_SEARCH_LIMIT:-500}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    secrets:
+      - keitaro_api_key
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - backend_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  # Enable after adding the Next.js Dockerfile under ./frontend.
+  frontend:
+    profiles:
+      - frontend
+    image: adrobot-wrapper-frontend:local
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+    init: true
+
+secrets:
+  keitaro_api_key:
+    file: ./backend/.secrets/keitaro_api_key
+
+volumes:
+  backend_data:
