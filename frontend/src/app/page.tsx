@@ -1,2 +1,2 @@
-import { CampaignWorkspace } from "@/components/campaign-workspace";
+import { CampaignWorkspace } from "@/features/campaigns/CampaignWorkspace";
 export default function Home(){return <CampaignWorkspace/>;}
