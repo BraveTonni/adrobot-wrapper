@@ -210,8 +210,87 @@ async def test_list_offers_parses_offer_array(client: KeitaroClient) -> None:
 
         result = await client.list_offers()
 
-    assert result[0].id == 3
-    assert route.called
+    assert [offer.id for offer in result] == [3]
+    assert route.calls.last.request.url.params["limit"] == "100"
+    assert route.calls.last.request.url.params["offset"] == "0"
+
+
+@pytest.mark.asyncio
+async def test_list_offers_pages_through_a_large_catalog(
+    client: KeitaroClient,
+) -> None:
+    first_page = [
+        {"id": index, "name": f"Offer {index}"} for index in range(100)
+    ]
+    with respx.mock(base_url="https://keitaro.test/admin_api/v1") as routes:
+        pages = routes.get("/offers").mock(
+            side_effect=[
+                httpx.Response(200, json=first_page),
+                httpx.Response(200, json=[{"id": 100, "name": "Last"}]),
+            ]
+        )
+
+        result = await client.list_offers()
+
+    assert [offer.id for offer in result] == list(range(101))
+    offsets = [call.request.url.params["offset"] for call in pages.calls]
+    assert offsets == ["0", "100"]
+
+
+@pytest.mark.asyncio
+async def test_list_offers_stops_when_the_server_ignores_paging(
+    client: KeitaroClient,
+) -> None:
+    body = [{"id": index, "name": f"Offer {index}"} for index in range(170)]
+    with respx.mock(base_url="https://keitaro.test/admin_api/v1") as routes:
+        pages = routes.get("/offers").mock(
+            return_value=httpx.Response(200, json=body)
+        )
+
+        result = await client.list_offers()
+
+    assert [offer.id for offer in result] == list(range(170))
+    assert pages.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_list_offers_returns_an_empty_catalog(
+    client: KeitaroClient,
+) -> None:
+    with respx.mock(base_url="https://keitaro.test/admin_api/v1") as routes:
+        pages = routes.get("/offers").mock(
+            return_value=httpx.Response(200, json=[])
+        )
+
+        assert await client.list_offers() == []
+
+    assert pages.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_failed_request_logs_the_keitaro_error_body(
+    client: KeitaroClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    with respx.mock(base_url="https://keitaro.test/admin_api/v1") as routes:
+        routes.post("/campaigns").mock(
+            return_value=httpx.Response(
+                400, json={"error": "alias is already taken"}
+            )
+        )
+
+        with pytest.raises(KeitaroError) as caught:
+            await client.create_campaign(
+                CampaignCreate(
+                    name="Launch",
+                    alias="launch",
+                    domain_id=1,
+                    group_id=2,
+                    traffic_source_id=3,
+                )
+            )
+
+    assert caught.value.status == 400
+    assert "alias is already taken" in caplog.text
 
 
 @pytest.mark.asyncio

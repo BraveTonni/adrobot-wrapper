@@ -24,6 +24,8 @@ from app.infrastructure.keitaro.schemas import (
 logger = logging.getLogger(__name__)
 GET_RETRIES = 1
 RETRY_DELAY_SECONDS = 0.25
+OFFERS_PAGE_SIZE = 100
+_ERROR_SUMMARY_LENGTH = 500
 
 
 class KeitaroClient:
@@ -100,7 +102,8 @@ class KeitaroClient:
         )
         if response.status_code >= 400:
             logger.error(
-                "keitaro request failed",
+                "keitaro request failed: %s",
+                _error_summary(response),
                 extra={
                     "keitaro": {
                         "method": method,
@@ -169,8 +172,30 @@ class KeitaroClient:
     # --- справочники ----------------------------------------------------
 
     async def list_offers(self) -> list[Offer]:
-        data = await self._request("GET", "/offers")
-        return [Offer.model_validate(item) for item in parse_list(data)]
+        """Читает все офферы постранично, пока страница не станет короче.
+
+        Официальный API не описывает параметры `/offers`, поэтому цикл
+        останавливается и тогда, когда страница не добавила новых офферов.
+        """
+        offers: list[Offer] = []
+        seen: set[int] = set()
+        offset = 0
+        while True:
+            data = await self._request(
+                "GET",
+                "/offers",
+                params={"offset": offset, "limit": OFFERS_PAGE_SIZE},
+            )
+            page = [Offer.model_validate(item) for item in parse_list(data)]
+            fresh = [offer for offer in page if offer.id not in seen]
+            if not fresh:
+                break
+            offers.extend(fresh)
+            seen.update(offer.id for offer in fresh)
+            if len(page) < OFFERS_PAGE_SIZE:
+                break
+            offset += len(page)
+        return offers
 
     async def get_offer(self, offer_id: int) -> Offer:
         data = await self._request("GET", f"/offers/{offer_id}")
@@ -193,3 +218,8 @@ class KeitaroClient:
         return [
             TrafficSource.model_validate(item) for item in parse_list(data)
         ]
+
+
+def _error_summary(response: httpx.Response) -> str:
+    """Краткое тело ошибки Keitaro для журнала; клиенту оно не отдаётся."""
+    return " ".join(response.text.split())[:_ERROR_SUMMARY_LENGTH]
