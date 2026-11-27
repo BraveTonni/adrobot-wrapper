@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, ForeignKey, String
+from sqlalchemy import JSON, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.infrastructure.persistence.models.base import Base
@@ -23,7 +23,9 @@ class CampaignSnapshot(Base):
     group_id: Mapped[int | None]
     traffic_source_id: Mapped[int | None]
     updated_at: Mapped[datetime] = mapped_column(
-        default=lambda: datetime.now(UTC), nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
     )
     streams: Mapped[list[StreamSnapshot]] = relationship(
         back_populates="campaign",

@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, String, Text, func
+from sqlalchemy import JSON, DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.persistence.models.base import Base
@@ -17,8 +17,10 @@ class Operation(Base):
     __tablename__ = "audit_log"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # Время всегда приходит с таймзоной: PostgreSQL принимает его только в
+    # колонку WITH TIME ZONE.
     created_at: Mapped[datetime] = mapped_column(
-        default=utcnow, server_default=func.now()
+        DateTime(timezone=True), default=utcnow, server_default=func.now()
     )
     action: Mapped[str] = mapped_column(String(50))
     actor: Mapped[str] = mapped_column(String(150), default="unknown")
