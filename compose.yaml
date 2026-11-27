@@ -1,12 +1,56 @@
 name: adrobot-wrapper
 
 services:
+  db:
+    image: postgres:16-alpine@sha256:f2f98726820d0342055351c6e9d36e705f5bfffb3dd53ff556325114b08afb6d
+    # The official entrypoint runs as root only to prepare the data directory
+    # and then drops to the unprivileged `postgres` user.
+    environment:
+      POSTGRES_USER: adrobot
+      POSTGRES_DB: adrobot
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adrobot -d adrobot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    read_only: true
+    tmpfs:
+      - /var/run/postgresql:rw,noexec,nosuid,nodev,size=16m
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
   migrate:
     image: adrobot-wrapper-backend:local
     build:
       context: ./backend
       dockerfile: Dockerfile
     command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
       PYDANTIC_SECRETS_DIR: /run/secrets
     secrets:
@@ -31,6 +75,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     depends_on:
+      db:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     environment:
@@ -42,8 +88,9 @@ services:
       DEFAULT_GROUP_ID: ${DEFAULT_GROUP_ID:-10332}
       DEFAULT_SOURCE_ID: ${DEFAULT_SOURCE_ID:-836}
       GEO_REDIRECT_URL: ${GEO_REDIRECT_URL:-https://google.com}
-      OFFERS_CACHE_TTL: ${OFFERS_CACHE_TTL:-3600}
-      REFERENCE_CACHE_TTL: ${REFERENCE_CACHE_TTL:-3600}
+      EDITOR_PUBLISH_MODE: ${EDITOR_PUBLISH_MODE:-direct}
+      OFFERS_CACHE_TTL: ${OFFERS_CACHE_TTL:-300}
+      REFERENCE_CACHE_TTL: ${REFERENCE_CACHE_TTL:-300}
       CAMPAIGN_SEARCH_LIMIT: ${CAMPAIGN_SEARCH_LIMIT:-500}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_DIRECTORY: /app/logs
@@ -109,6 +156,8 @@ services:
     init: true
 
 secrets:
+  postgres_password:
+    file: ./backend/.secrets/postgres_password
   database_url:
     file: ./backend/.secrets/database_url
   keitaro_api_key:
@@ -120,3 +169,4 @@ secrets:
 
 volumes:
   backend_data:
+  postgres_data:

@@ -36,3 +36,52 @@ jobs:
 
       - name: Run checks
         run: make check
+
+  postgres:
+    name: PostgreSQL migrations and scenarios
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine@sha256:f2f98726820d0342055351c6e9d36e705f5bfffb3dd53ff556325114b08afb6d
+        env:
+          POSTGRES_USER: adrobot
+          POSTGRES_PASSWORD: adrobot-test
+          POSTGRES_DB: adrobot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U adrobot -d adrobot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql+asyncpg://adrobot:adrobot-test@127.0.0.1:5432/adrobot
+      ACCEPTANCE_DATABASE_URL: postgresql+asyncpg://adrobot:adrobot-test@127.0.0.1:5432/adrobot
+      TEST_DATABASE_URL: postgresql+asyncpg://adrobot:adrobot-test@127.0.0.1:5432/adrobot
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --locked
+
+      - name: Apply migrations
+        working-directory: backend
+        run: uv run alembic upgrade head
+
+      - name: Fail when models drift from migrations
+        working-directory: backend
+        run: uv run alembic check
+
+      - name: Run application scenarios on PostgreSQL
+        working-directory: backend
+        run: uv run pytest tests/acceptance
+
+      - name: Run repository tests on PostgreSQL
+        working-directory: backend
+        run: uv run pytest -m integration tests/integration/postgres

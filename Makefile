@@ -1,9 +1,10 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help check lint typecheck fmt run up down logs docker-build migrate backend-install backend-dev alembic test docs docs-serve secret-scan frontend-install frontend-dev frontend-lint frontend-typecheck frontend-test frontend-build frontend-check frontend-docker-build
+.PHONY: help check lint typecheck fmt secrets run up down logs docker-build migrate backend-install backend-dev alembic test docs docs-serve secret-scan frontend-install frontend-dev frontend-lint frontend-typecheck frontend-test frontend-build frontend-check frontend-docker-build
 
 help:
 	@echo "Доступные команды:"
+	@echo "  make secrets      Создать локальные .env и секреты Compose"
 	@echo "  make run          Собрать и запустить приложение через Docker Compose"
 	@echo "  make up           Запустить Compose в фоне"
 	@echo "  make down         Остановить Compose и удалить контейнеры/сеть"
@@ -37,6 +38,9 @@ typecheck:
 fmt:
 	cd backend && uv run ruff check --select I --fix .
 	cd backend && uv run ruff format .
+
+secrets:
+	./scripts/create-local-secrets.sh
 
 run:
 	docker compose --profile frontend up --build
