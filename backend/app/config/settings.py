@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     # База данных
     database_url: str = "sqlite+aiosqlite:///./adrobot.db"
 
+    # `direct` публикует каждое изменение офферов в Keitaro сразу;
+    # `draft` копит изменения в локальном черновике до явной публикации.
+    editor_publish_mode: Literal["direct", "draft"] = "direct"
+
     # Кэш справочников, секунды
     offers_cache_ttl: float = 300
     reference_cache_ttl: float = 300

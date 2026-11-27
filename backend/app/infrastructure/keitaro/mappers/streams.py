@@ -7,45 +7,12 @@ from app.infrastructure.keitaro.schemas import (
     Stream as KeitaroStream,
 )
 from app.infrastructure.keitaro.schemas import (
-    StreamCreate,
-    StreamFilter,
-)
-from app.infrastructure.keitaro.schemas import (
     StreamOffer as KeitaroStreamOffer,
 )
 
-GEO_STREAM_POSITION = 1
-OFFER_STREAM_POSITION = 2
 READ_ONLY_OFFER_FIELDS = frozenset(
     {"id", "stream_id", "created_at", "updated_at"}
 )
-
-
-def geo_stream_to_keitaro(
-    campaign_id: int, geo: str, redirect_url: str
-) -> StreamCreate:
-    return StreamCreate(
-        campaign_id=campaign_id,
-        name=f"Geo {geo}",
-        type="regular",
-        schema="redirect",
-        position=GEO_STREAM_POSITION,
-        action_type="http",
-        action_payload=redirect_url,
-        filters=[StreamFilter(name="country", mode="accept", payload=[geo])],
-    )
-
-
-def offer_stream_to_keitaro(campaign_id: int, offer_id: int) -> StreamCreate:
-    return StreamCreate(
-        campaign_id=campaign_id,
-        name="Offers",
-        type="default",
-        schema="landings",
-        position=OFFER_STREAM_POSITION,
-        action_type="http",
-        offers=[{"offer_id": offer_id, "share": 100, "state": "active"}],
-    )
 
 
 def stream_to_domain(stream: KeitaroStream) -> Stream:

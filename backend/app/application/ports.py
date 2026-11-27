@@ -88,7 +88,11 @@ class CampaignEditingRepository(OfferReader, Protocol):
     async def get_stream(self, stream_id: int) -> Stream: ...
 
     async def update_stream(
-        self, stream_id: int, offers: list[StreamOffer]
+        self,
+        stream_id: int,
+        offers: list[StreamOffer],
+        *,
+        current: Stream | None = None,
     ) -> Stream: ...
 
 

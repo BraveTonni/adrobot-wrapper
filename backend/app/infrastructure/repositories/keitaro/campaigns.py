@@ -10,19 +10,18 @@ from app.infrastructure.keitaro.mappers.campaigns import (
 )
 from app.infrastructure.keitaro.mappers.catalog import offer_to_domain
 from app.infrastructure.keitaro.mappers.streams import (
-    geo_stream_to_keitaro,
-    offer_stream_to_keitaro,
     stream_offer_to_keitaro,
     stream_to_domain,
 )
 from app.infrastructure.keitaro.schemas import StreamCreate, StreamFilter
 from app.infrastructure.repositories.keitaro.errors.translation import execute
 
+READ_ONLY_STREAM_FIELDS = frozenset({"id", "created_at", "updated_at"})
+
 
 class KeitaroCampaignRepository:
-    def __init__(self, client: KeitaroClient, geo_redirect_url: str) -> None:
+    def __init__(self, client: KeitaroClient) -> None:
         self._client = client
-        self._geo_redirect_url = geo_redirect_url
 
     async def get_offer(self, offer_id: int) -> Offer:
         offer = await execute(self._client.get_offer(offer_id))
@@ -35,20 +34,6 @@ class KeitaroCampaignRepository:
 
     async def delete_campaign(self, campaign_id: int) -> None:
         await execute(self._client.delete_campaign(campaign_id))
-
-    async def create_geo_stream(self, campaign_id: int, geo: str) -> Stream:
-        request = geo_stream_to_keitaro(
-            campaign_id, geo, self._geo_redirect_url
-        )
-        stream = await execute(self._client.create_stream(request))
-        return stream_to_domain(stream)
-
-    async def create_offer_stream(
-        self, campaign_id: int, offer_id: int
-    ) -> Stream:
-        request = offer_stream_to_keitaro(campaign_id, offer_id)
-        stream = await execute(self._client.create_stream(request))
-        return stream_to_domain(stream)
 
     async def create_stream(self, command: CreateStream) -> Stream:
         request = StreamCreate(
@@ -87,15 +72,22 @@ class KeitaroCampaignRepository:
         return stream_to_domain(stream)
 
     async def update_stream(
-        self, stream_id: int, offers: list[StreamOffer]
+        self,
+        stream_id: int,
+        offers: list[StreamOffer],
+        *,
+        current: Stream | None = None,
     ) -> Stream:
-        current = await execute(self._client.get_stream(stream_id))
+        """Заменяет офферы потока, сохраняя его остальные настройки.
+
+        `current` — уже прочитанный поток; без него настройки перечитываются.
+        """
+        if current is None:
+            current = await self.get_stream(stream_id)
         payload = {
             key: value
-            for key, value in current.model_dump(
-                by_alias=True, exclude_unset=True
-            ).items()
-            if key not in {"id", "created_at", "updated_at"}
+            for key, value in current.raw_payload.items()
+            if key not in READ_ONLY_STREAM_FIELDS
         }
         payload["offers"] = [
             stream_offer_to_keitaro(offer) for offer in offers

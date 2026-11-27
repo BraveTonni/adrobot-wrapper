@@ -2,8 +2,8 @@
 
 import asyncio
 import logging
-from collections.abc import Callable
-from dataclasses import replace
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, replace
 
 from app.application.catalog.service import Catalog
 from app.application.errors import (
@@ -11,7 +11,7 @@ from app.application.errors import (
     NotFoundError,
     RepositoryNotFoundError,
 )
-from app.application.offer.validation import ensure_offer_exists
+from app.application.offer.validation import ensure_offer_in_catalog
 from app.application.ports import (
     AuditRepository,
     CampaignEditingRepository,
@@ -28,12 +28,32 @@ from app.domain.campaigns.offer_state import (
 from app.domain.campaigns.offer_state import (
     restore_offer as restore_soft_deleted_offer,
 )
-from app.domain.shares import rebalance_active_offers
+from app.domain.shares import (
+    is_active_offer,
+    rebalance_active_offers,
+)
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass(slots=True)
+class _Attempt:
+    """Изменяющая операция: её запись аудита и поток до изменения."""
+
+    operation_id: int
+    campaign_id: int
+    stream_id: int
+    before: Stream | None = None
+
+
 class CampaignEditor:
+    """Редактор офферов потока.
+
+    Без хранилища черновиков каждое изменение сразу публикуется в Keitaro.
+    С хранилищем (`drafts`) изменения копятся локально и уходят отдельным
+    `push`, который отказывается затирать поток, изменённый в Keitaro.
+    """
+
     def __init__(
         self,
         repository: CampaignEditingRepository,
@@ -46,6 +66,11 @@ class CampaignEditor:
         self._catalog = catalog
         self._drafts = drafts
 
+    @property
+    def publishes_immediately(self) -> bool:
+        """Изменения уходят в Keitaro сразу, а не ждут явной публикации."""
+        return self._drafts is None
+
     async def add_offer(
         self,
         campaign_id: int,
@@ -54,14 +79,31 @@ class CampaignEditor:
         *,
         actor: str = "unknown",
     ) -> Stream:
-        return await self._mutate(
+        attempt = await self._begin(
+            "stream.offer_add",
+            actor,
             campaign_id,
             stream_id,
-            offer_id,
-            action="stream.offer_add",
-            actor=actor,
-            add=True,
+            {"offer_id": offer_id},
         )
+
+        async def run() -> Stream:
+            await ensure_offer_in_catalog(
+                self._catalog, self._repository, offer_id
+            )
+            stream = await self._load_stream(campaign_id, stream_id)
+            attempt.before = stream
+            known = _find(stream.offers, offer_id)
+            if known is not None and not known.is_deleted:
+                raise ConflictError(f"Оффер #{offer_id} уже есть в потоке")
+            offers = (
+                restore_soft_deleted_offer(stream.offers, offer_id)
+                if known is not None
+                else [*stream.offers, _new_offer(offer_id)]
+            )
+            return await self._publish_change(stream, offers)
+
+        return await self._execute(attempt, run)
 
     async def remove_offer(
         self,
@@ -71,14 +113,34 @@ class CampaignEditor:
         *,
         actor: str = "unknown",
     ) -> Stream:
-        return await self._mutate(
+        attempt = await self._begin(
+            "stream.offer_remove",
+            actor,
             campaign_id,
             stream_id,
-            offer_id,
-            action="stream.offer_remove",
-            actor=actor,
-            add=False,
+            {"offer_id": offer_id},
         )
+
+        async def run() -> Stream:
+            stream = await self._load_stream(campaign_id, stream_id)
+            attempt.before = stream
+            known = _find(stream.offers, offer_id)
+            if known is None or known.is_deleted:
+                raise NotFoundError(f"Оффер #{offer_id} не найден в потоке")
+            offers = (
+                soft_delete_offer(stream.offers, offer_id)
+                if self._drafts is not None
+                else [
+                    item for item in stream.offers if item.offer_id != offer_id
+                ]
+            )
+            if not any(is_active_offer(item) for item in offers):
+                raise ConflictError(
+                    "Нельзя удалить последний оффер: сначала добавьте другой"
+                )
+            return await self._publish_change(stream, offers)
+
+        return await self._execute(attempt, run)
 
     async def cancel_draft(
         self,
@@ -87,7 +149,7 @@ class CampaignEditor:
         *,
         actor: str = "unknown",
     ) -> Stream:
-        return await self._draft_mutation(
+        return await self._change_draft(
             campaign_id,
             stream_id,
             action="stream.draft_cancel",
@@ -110,12 +172,13 @@ class CampaignEditor:
             except ValueError as exc:
                 raise ConflictError(str(exc)) from exc
 
-        return await self._draft_mutation(
+        return await self._change_draft(
             campaign_id,
             stream_id,
             action="stream.offer_restore",
             actor=actor,
             change=restore,
+            rebalance=True,
         )
 
     async def push(
@@ -125,67 +188,34 @@ class CampaignEditor:
         *,
         actor: str = "unknown",
     ) -> Stream:
-        operation_id = await self._audit.begin(
-            action="stream.push",
-            actor=actor,
-            entity_type="stream",
-            entity_id=stream_id,
-            campaign_id=campaign_id,
-            stream_id=stream_id,
+        attempt = await self._begin(
+            "stream.push", actor, campaign_id, stream_id
         )
-        stream: Stream | None = None
-        try:
-            stream = await self._load_stream(campaign_id, stream_id)
+
+        async def run() -> Stream:
+            if self._drafts is None:
+                raise ConflictError("черновики потоков недоступны")
+            draft = await self._load_stream(campaign_id, stream_id)
+            attempt.before = draft
             try:
-                push_offers = offers_for_push(stream.offers)
+                push_offers = offers_for_push(draft.offers)
             except ValueError as exc:
                 raise ConflictError(str(exc)) from exc
-            updated_remote = await self._repository.update_stream(
-                stream_id, push_offers
-            )
-            if self._drafts is not None:
-                await self._drafts.sync_stream(updated_remote)
-                updated = await self._drafts.get_stream(campaign_id, stream_id)
-            else:
-                updated = updated_remote
-        except asyncio.CancelledError as exc:
-            await asyncio.shield(
-                self._finish_safely(
-                    operation_id,
-                    status="cancelled",
-                    campaign_id=campaign_id,
-                    stream_id=stream_id,
-                    before_payload=(
-                        _offers_payload(stream.offers) if stream else None
-                    ),
-                    error=repr(exc),
+            remote = await self._fetch_remote_stream(stream_id)
+            if _published(draft.offers) != _published(remote.offers):
+                raise ConflictError(
+                    "Поток изменился в Keitaro после загрузки черновика. "
+                    "Обновите кампанию и повторите изменения."
                 )
+            updated = await self._repository.update_stream(
+                stream_id, push_offers, current=remote
             )
-            raise
-        except Exception as exc:
-            await self._finish_safely(
-                operation_id,
-                status="failed",
-                campaign_id=campaign_id,
-                stream_id=stream_id,
-                before_payload=(
-                    _offers_payload(stream.offers) if stream else None
-                ),
-                error=str(exc),
-            )
-            raise
+            await self._drafts.sync_stream(updated)
+            return await self._drafts.get_stream(campaign_id, stream_id)
 
-        await self._finish_safely(
-            operation_id,
-            status="ok",
-            campaign_id=campaign_id,
-            stream_id=stream_id,
-            before_payload=_offers_payload(stream.offers),
-            after_payload=_offers_payload(updated.offers),
-        )
-        return updated
+        return await self._execute(attempt, run)
 
-    async def _draft_mutation(
+    async def _change_draft(
         self,
         campaign_id: int,
         stream_id: int,
@@ -193,73 +223,29 @@ class CampaignEditor:
         action: str,
         actor: str,
         change: Callable[[list[StreamOffer]], list[StreamOffer]],
-        rebalance: bool = True,
+        rebalance: bool,
     ) -> Stream:
-        if self._drafts is None:
-            raise ConflictError("черновики потоков недоступны")
-        operation_id = await self._audit.begin(
-            action=action,
-            actor=actor,
-            entity_type="stream",
-            entity_id=stream_id,
-            campaign_id=campaign_id,
-            stream_id=stream_id,
-        )
-        stream: Stream | None = None
-        try:
+        attempt = await self._begin(action, actor, campaign_id, stream_id)
+
+        async def run() -> Stream:
+            if self._drafts is None:
+                raise ConflictError("черновики потоков недоступны")
             stream = await self._load_stream(campaign_id, stream_id)
-            updated = await self._save_draft(
-                stream,
-                change(stream.offers),
-                rebalance=rebalance,
+            attempt.before = stream
+            return await self._save_draft(
+                stream, change(stream.offers), rebalance=rebalance
             )
-        except asyncio.CancelledError as exc:
-            await asyncio.shield(
-                self._finish_safely(
-                    operation_id,
-                    status="cancelled",
-                    campaign_id=campaign_id,
-                    stream_id=stream_id,
-                    before_payload=(
-                        _offers_payload(stream.offers) if stream else None
-                    ),
-                    error=repr(exc),
-                )
-            )
-            raise
-        except Exception as exc:
-            await self._finish_safely(
-                operation_id,
-                status="failed",
-                campaign_id=campaign_id,
-                stream_id=stream_id,
-                before_payload=(
-                    _offers_payload(stream.offers) if stream else None
-                ),
-                error=str(exc),
-            )
-            raise
 
-        await self._finish_safely(
-            operation_id,
-            status="ok",
-            campaign_id=campaign_id,
-            stream_id=stream_id,
-            before_payload=_offers_payload(stream.offers),
-            after_payload=_offers_payload(updated.offers),
-        )
-        return updated
+        return await self._execute(attempt, run)
 
-    async def _mutate(
+    async def _begin(
         self,
-        campaign_id: int,
-        stream_id: int,
-        offer_id: int,
-        *,
         action: str,
         actor: str,
-        add: bool,
-    ) -> Stream:
+        campaign_id: int,
+        stream_id: int,
+        detail: dict[str, object] | None = None,
+    ) -> _Attempt:
         operation_id = await self._audit.begin(
             action=action,
             actor=actor,
@@ -267,133 +253,76 @@ class CampaignEditor:
             entity_id=stream_id,
             campaign_id=campaign_id,
             stream_id=stream_id,
-            detail={"offer_id": offer_id},
+            detail=detail,
         )
-        stream: Stream | None = None
-        try:
-            if add:
-                if self._catalog is None:
-                    await ensure_offer_exists(self._repository, offer_id)
-                elif not any(
-                    offer.id == offer_id
-                    for offer in await self._catalog.offers()
-                ):
-                    raise NotFoundError(
-                        f"Оффер #{offer_id} не найден в каталоге Keitaro"
-                    )
-            stream = await self._load_stream(campaign_id, stream_id)
-            if add:
-                current = next(
-                    (
-                        offer
-                        for offer in stream.offers
-                        if offer.offer_id == offer_id
-                    ),
-                    None,
-                )
-                if current is not None and not current.is_deleted:
-                    raise ConflictError(f"Оффер #{offer_id} уже есть в потоке")
-                if current is not None:
-                    offers = restore_soft_deleted_offer(
-                        stream.offers, offer_id
-                    )
-                else:
-                    offers = [
-                        *stream.offers,
-                        StreamOffer(
-                            offer_id=offer_id,
-                            share=1,
-                            state="active",
-                            published_share=0,
-                            published_state="deleted",
-                            draft_share=1,
-                            draft_state="active",
-                        ),
-                    ]
-            else:
-                current = next(
-                    (
-                        offer
-                        for offer in stream.offers
-                        if offer.offer_id == offer_id
-                    ),
-                    None,
-                )
-                if current is None or current.is_deleted:
-                    raise NotFoundError(
-                        f"Оффер #{offer_id} не найден в потоке"
-                    )
-                if self._drafts is not None:
-                    offers = soft_delete_offer(stream.offers, offer_id)
-                else:
-                    offers = [
-                        offer
-                        for offer in stream.offers
-                        if offer.offer_id != offer_id
-                    ]
-                if not offers or (
-                    self._drafts is None
-                    and not [
-                        offer
-                        for offer in offers
-                        if offer.state is None
-                        or offer.state.lower() == "active"
-                    ]
-                ):
-                    raise ConflictError(
-                        "Нельзя удалить последний оффер: "
-                        "сначала добавьте другой"
-                    )
+        return _Attempt(
+            operation_id=operation_id,
+            campaign_id=campaign_id,
+            stream_id=stream_id,
+        )
 
-            if self._drafts is not None:
-                updated = await self._save_draft(stream, offers)
-            else:
-                updated = await self._save(stream, offers, action=action)
+    async def _execute(
+        self, attempt: _Attempt, run: Callable[[], Awaitable[Stream]]
+    ) -> Stream:
+        """Выполняет изменение и закрывает запись аудита с его итогом."""
+        try:
+            updated = await run()
         except asyncio.CancelledError as exc:
             await asyncio.shield(
-                self._finish_safely(
-                    operation_id,
-                    status="cancelled",
-                    campaign_id=campaign_id,
-                    stream_id=stream_id,
-                    before_payload=(
-                        _offers_payload(stream.offers) if stream else None
-                    ),
-                    error=repr(exc),
-                )
+                self._finish(attempt, status="cancelled", error=repr(exc))
             )
             raise
         except Exception as exc:
-            await self._finish_safely(
-                operation_id,
-                status="failed",
-                campaign_id=campaign_id,
-                stream_id=stream_id,
-                before_payload=(
-                    _offers_payload(stream.offers) if stream else None
-                ),
-                error=str(exc),
-            )
+            await self._finish(attempt, status="failed", error=str(exc))
             raise
-
-        await self._finish_safely(
-            operation_id,
-            status="ok",
-            campaign_id=campaign_id,
-            stream_id=stream_id,
-            before_payload=_offers_payload(stream.offers),
-            after_payload=_offers_payload(updated.offers),
-        )
+        await self._finish(attempt, status="ok", after=updated)
         return updated
 
-    async def _load_stream(self, campaign_id: int, stream_id: int) -> Stream:
+    async def _finish(
+        self,
+        attempt: _Attempt,
+        *,
+        status: str,
+        after: Stream | None = None,
+        error: str | None = None,
+    ) -> None:
         try:
-            if self._drafts is not None:
+            await self._audit.finish(
+                attempt.operation_id,
+                status=status,
+                campaign_id=attempt.campaign_id,
+                stream_id=attempt.stream_id,
+                entity_id=attempt.stream_id,
+                before_payload=(
+                    _offers_payload(attempt.before.offers)
+                    if attempt.before is not None
+                    else None
+                ),
+                after_payload=(
+                    _offers_payload(after.offers)
+                    if after is not None
+                    else None
+                ),
+                error=error,
+            )
+        except Exception as exc:
+            logger.error(
+                "не удалось завершить запись аудита",
+                extra={
+                    "operation_id": attempt.operation_id,
+                    "status": status,
+                    "exception_type": type(exc).__name__,
+                },
+            )
+
+    async def _load_stream(self, campaign_id: int, stream_id: int) -> Stream:
+        if self._drafts is not None:
+            try:
                 stream = await self._drafts.get_stream(campaign_id, stream_id)
-            else:
-                stream = await self._repository.get_stream(stream_id)
-        except RepositoryNotFoundError as exc:
-            raise NotFoundError(f"Поток #{stream_id} не найден") from exc
+            except RepositoryNotFoundError as exc:
+                raise NotFoundError(f"Поток #{stream_id} не найден") from exc
+        else:
+            stream = await self._fetch_remote_stream(stream_id)
 
         if stream.campaign_id != campaign_id:
             raise NotFoundError(
@@ -404,33 +333,37 @@ class CampaignEditor:
 
         return stream
 
-    async def _save(
-        self, stream: Stream, offers: list[StreamOffer], *, action: str
-    ) -> Stream:
+    async def _fetch_remote_stream(self, stream_id: int) -> Stream:
         try:
-            updated_offers = rebalance_active_offers(offers)
-            push_offers = offers_for_push(updated_offers)
+            return await self._repository.get_stream(stream_id)
+        except RepositoryNotFoundError as exc:
+            raise NotFoundError(f"Поток #{stream_id} не найден") from exc
+
+    async def _publish_change(
+        self, stream: Stream, offers: list[StreamOffer]
+    ) -> Stream:
+        if self._drafts is not None:
+            return await self._save_draft(stream, offers)
+
+        try:
+            rebalanced = rebalance_active_offers(offers)
+            push_offers = offers_for_push(rebalanced)
         except ValueError as exc:
             raise ConflictError(str(exc)) from exc
-        updated = await self._repository.update_stream(stream.id, push_offers)
-
+        updated = await self._repository.update_stream(
+            stream.id, push_offers, current=stream
+        )
         total = sum(offer.share for offer in updated.offers)
         if updated.offers and total != 100:
             logger.error(
                 "Keitaro сохранил доли с неверной суммой",
-                extra={
-                    "stream_id": stream.id,
-                    "total": total,
-                    "action": action,
-                },
+                extra={"stream_id": stream.id, "total": total},
             )
-
         logger.info(
             "офферы потока обновлены",
             extra={
                 "stream_id": stream.id,
                 "campaign_id": stream.campaign_id,
-                "action": action,
                 "offer_ids": [offer.offer_id for offer in updated.offers],
                 "shares": [offer.share for offer in updated.offers],
             },
@@ -454,37 +387,35 @@ class CampaignEditor:
         await self._drafts.save_offers(stream.id, offers)
         return replace(stream, offers=offers)
 
-    async def _finish_safely(
-        self,
-        operation_id: int,
-        *,
-        status: str,
-        campaign_id: int,
-        stream_id: int,
-        before_payload: list[object] | None = None,
-        after_payload: list[object] | None = None,
-        error: str | None = None,
-    ) -> None:
-        try:
-            await self._audit.finish(
-                operation_id,
-                status=status,
-                campaign_id=campaign_id,
-                stream_id=stream_id,
-                entity_id=stream_id,
-                before_payload=before_payload,
-                after_payload=after_payload,
-                error=error,
-            )
-        except Exception as exc:
-            logger.error(
-                "не удалось завершить запись аудита",
-                extra={
-                    "operation_id": operation_id,
-                    "status": status,
-                    "exception_type": type(exc).__name__,
-                },
-            )
+
+def _find(offers: list[StreamOffer], offer_id: int) -> StreamOffer | None:
+    return next(
+        (offer for offer in offers if offer.offer_id == offer_id), None
+    )
+
+
+def _new_offer(offer_id: int) -> StreamOffer:
+    """Оффер, добавленный локально и ещё не опубликованный в Keitaro."""
+    return StreamOffer(
+        offer_id=offer_id,
+        share=1,
+        state="active",
+        published_share=0,
+        published_state="deleted",
+        draft_share=1,
+        draft_state="active",
+    )
+
+
+def _published(
+    offers: list[StreamOffer],
+) -> dict[int, tuple[int | None, str | None]]:
+    """Опубликованные в Keitaro офферы: доля и состояние."""
+    return {
+        offer.offer_id: (offer.published_share, offer.published_state)
+        for offer in offers
+        if offer.published_state != "deleted"
+    }
 
 
 def _offers_payload(offers: list[StreamOffer]) -> list[object]:

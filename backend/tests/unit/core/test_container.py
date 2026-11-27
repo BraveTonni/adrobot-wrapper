@@ -28,3 +28,27 @@ async def test_build_container_wires_application_services() -> None:
         assert isinstance(container.health_check, HealthCheck)
     finally:
         await container.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("mode", "publishes_immediately"),
+    [("direct", True), ("draft", False)],
+)
+async def test_editor_publish_mode_follows_configuration(
+    mode: str, publishes_immediately: bool
+) -> None:
+    config = Settings(
+        _env_file=None,
+        database_url="sqlite+aiosqlite:///:memory:",
+        editor_publish_mode=mode,  # type: ignore[arg-type]
+    )
+    container = build_container(config)
+
+    try:
+        assert (
+            container.campaign_editor.publishes_immediately
+            is publishes_immediately
+        )
+    finally:
+        await container.close()

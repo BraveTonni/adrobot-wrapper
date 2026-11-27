@@ -62,9 +62,7 @@ def build_container(config: Settings = settings) -> ApplicationContainer:
     session_factory = build_session_factory(engine)
     client = KeitaroClient(config)
 
-    campaign_repository = KeitaroCampaignRepository(
-        client, config.geo_redirect_url
-    )
+    campaign_repository = KeitaroCampaignRepository(client)
     catalog_repository = CachedCatalogRepository(
         KeitaroCatalogRepository(client),
         offers_ttl=config.offers_cache_ttl,
@@ -117,7 +115,11 @@ def build_container(config: Settings = settings) -> ApplicationContainer:
             campaign_repository,
             audit_repository,
             catalog=catalog_service,
-            drafts=snapshot_repository,
+            drafts=(
+                snapshot_repository
+                if config.editor_publish_mode == "draft"
+                else None
+            ),
         ),
         campaign_queries=CampaignQueries(
             campaign_repository, snapshots=snapshot_repository

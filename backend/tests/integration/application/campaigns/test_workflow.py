@@ -31,7 +31,7 @@ async def test_campaign_create_and_offer_edit_round_trip() -> None:
         pytest.fail("KEITARO_TEST_CAMPAIGN_PREFIX must start with 'test_'")
 
     client = KeitaroClient(settings)
-    repository = KeitaroCampaignRepository(client, settings.geo_redirect_url)
+    repository = KeitaroCampaignRepository(client)
     campaign_id: int | None = None
 
     try:
