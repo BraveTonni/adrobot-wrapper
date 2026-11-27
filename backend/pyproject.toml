@@ -45,3 +45,8 @@ pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = ["integration: tests that call external services"]
+filterwarnings = [
+    # Starlette предупреждает о transport на httpx у testclient; приложение
+    # и тесты намеренно используют один и тот же httpx.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
