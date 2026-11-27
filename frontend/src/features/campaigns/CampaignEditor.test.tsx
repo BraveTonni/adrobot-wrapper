@@ -77,3 +77,24 @@ describe("CampaignEditor draft state", () => {
     expect(markup).toContain("черновик удалён");
   });
 });
+
+describe("CampaignEditor icons", () => {
+  it("draws icons without an external icon font", () => {
+    const markup = renderEditor({
+      offer_id: 42,
+      name: "Offer",
+      share: 100,
+      state: "active",
+      published_share: 100,
+      published_state: "active",
+      draft_share: 100,
+      draft_state: "active",
+      is_pinned: false,
+      is_deleted: false,
+      has_draft: false,
+    });
+
+    expect(markup).toContain('<svg aria-hidden="true" class="icon"');
+    expect(markup).not.toContain("Material Icons");
+  });
+});

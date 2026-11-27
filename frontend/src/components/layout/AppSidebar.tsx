@@ -1,3 +1,5 @@
+import { Icon } from "@/components/Icon";
+
 type AppSection = "create" | "edit";
 
 type Props = {
@@ -23,9 +25,7 @@ export function AppSidebar({ activeSection, onSectionChange }: Props) {
           type="button"
           onClick={() => onSectionChange("create")}
         >
-          <span aria-hidden="true" className="icon">
-            add_circle
-          </span>
+          <Icon name="add-circle" />
           <span className="nav-text">Создать кампанию</span>
         </button>
         <button
@@ -34,9 +34,7 @@ export function AppSidebar({ activeSection, onSectionChange }: Props) {
           type="button"
           onClick={() => onSectionChange("edit")}
         >
-          <span aria-hidden="true" className="icon">
-            tune
-          </span>
+          <Icon name="tune" />
           <span className="nav-text">Редактор офферов</span>
         </button>
       </nav>

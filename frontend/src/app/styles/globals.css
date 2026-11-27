@@ -436,8 +436,10 @@ select:focus-visible {
 }
 
 .icon {
-  font-family: "Material Icons Round";
-  font-size: 19px;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
   vertical-align: middle;
 }
 

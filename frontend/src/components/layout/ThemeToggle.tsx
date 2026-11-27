@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Icon } from "@/components/Icon";
 
 type Theme = "dark" | "light";
 const STORAGE_KEY = "adrobot-theme";
@@ -46,9 +47,7 @@ export function ThemeToggle() {
       type="button"
       onClick={toggleTheme}
     >
-      <span aria-hidden="true" className="icon">
-        {theme === "dark" ? "light_mode" : "dark_mode"}
-      </span>
+      <Icon name={theme === "dark" ? "light-mode" : "dark-mode"} />
     </button>
   );
 }

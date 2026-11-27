@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/Icon";
 import type { CampaignSummary } from "@/lib/types";
 
 type Props = {
@@ -51,9 +52,7 @@ export function CampaignPicker({
                 {campaign.alias ? ` · ${campaign.alias}` : ""}
               </span>
             </span>
-            <span aria-hidden="true" className="icon">
-              chevron_right
-            </span>
+            <Icon name="chevron-right" />
           </button>
         ))}
         {campaigns.length === 0 && (

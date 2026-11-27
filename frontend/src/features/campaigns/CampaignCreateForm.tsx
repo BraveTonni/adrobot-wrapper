@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/Icon";
 import type { FormEvent } from "react";
 import type { CampaignCreate, OfferSummary, References } from "@/lib/types";
 
@@ -145,9 +146,7 @@ export function CampaignCreateForm({
           type="submit"
         >
           {isSaving ? "Создаём…" : "Создать кампанию"}
-          <span aria-hidden="true" className="icon">
-            arrow_forward
-          </span>
+          <Icon name="arrow-forward" />
         </button>
       </div>
     </form>

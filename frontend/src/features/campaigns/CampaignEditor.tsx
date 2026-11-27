@@ -1,5 +1,6 @@
 "use client";
 
+import { Icon } from "@/components/Icon";
 import type { FormEvent } from "react";
 import type { Campaign, OfferSummary, Stream } from "@/lib/types";
 import { getSafeAdminUrl } from "@/lib/urls";
@@ -142,9 +143,7 @@ function StreamCard({
                       type="button"
                       onClick={() => onOfferRestore(stream.id, offer.offer_id)}
                     >
-                      <span aria-hidden="true" className="icon">
-                        restore
-                      </span>
+                      <Icon name="restore" />
                     </button>
                   ) : (
                     <button
@@ -156,9 +155,7 @@ function StreamCard({
                         onOfferChange(stream.id, offer.offer_id, "remove")
                       }
                     >
-                      <span aria-hidden="true" className="icon">
-                        delete
-                      </span>
+                      <Icon name="delete" />
                     </button>
                   )}
                 </li>
@@ -188,9 +185,7 @@ function StreamCard({
               disabled={isSaving || availableOffers.length === 0}
               type="submit"
             >
-              <span aria-hidden="true" className="icon">
-                add
-              </span>
+              <Icon name="add" />
             </button>
           </form>
           {hasDraft && (
