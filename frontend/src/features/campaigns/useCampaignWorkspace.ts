@@ -13,6 +13,7 @@ import type {
 } from "@/lib/types";
 
 const emptyCampaign: CampaignCreate = { name: "", geo: "", offer_id: 0 };
+const SEARCH_DEBOUNCE_MS = 300;
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message;
@@ -42,6 +43,7 @@ export function useCampaignWorkspace() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [form, setForm] = useState(emptyCampaign);
   const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -76,6 +78,30 @@ export function useCampaignWorkspace() {
       active = false;
     };
   }, []);
+
+  // Поиск уходит в Keitaro не на каждый символ, а после паузы во вводе.
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setSearchQuery(search),
+      SEARCH_DEBOUNCE_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    let active = true;
+    api
+      .campaigns(searchQuery)
+      .then((items) => {
+        if (active) setCampaigns(items);
+      })
+      .catch((reason: unknown) => {
+        if (active) setError(getErrorMessage(reason));
+      });
+    return () => {
+      active = false;
+    };
+  }, [searchQuery]);
 
   function replaceStream(updatedStream: Stream) {
     setCampaign((current) =>
@@ -159,7 +185,7 @@ export function useCampaignWorkspace() {
     created.warnings.forEach((warning) => toast.warning(warning));
 
     try {
-      setCampaigns(await api.campaigns(search));
+      setCampaigns(await api.campaigns(searchQuery));
     } catch (reason) {
       setError(getErrorMessage(reason));
     } finally {

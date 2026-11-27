@@ -27,11 +27,11 @@ export function CampaignPicker({
         <span className="muted">{campaigns.length} найдено</span>
       </header>
       <div className="field">
-        <label htmlFor="campaign-search">Поиск по названию</label>
+        <label htmlFor="campaign-search">Поиск по названию или ID</label>
         <input
           id="campaign-search"
           value={search}
-          placeholder="Название кампании"
+          placeholder="Название или ID кампании"
           onChange={(event) => onSearch(event.target.value)}
         />
       </div>
