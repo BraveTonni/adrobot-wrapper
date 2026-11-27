@@ -1,9 +1,13 @@
+import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 
-from app.application.campaigns.creator import CampaignCreator
+from app.application.campaigns.creator import (
+    CampaignCreator,
+    CreationProgress,
+)
 from app.application.campaigns.dtos import CampaignDefaults, CreateCampaign
 from app.application.campaigns.streams import CampaignStreamsCreator
 from app.application.catalog.dtos import References
@@ -40,6 +44,16 @@ def stream(stream_id: int, position: int) -> Stream:
     )
 
 
+def create(**overrides: object) -> dict[str, object]:
+    return {
+        "name": "campaign",
+        "alias": "campaign-123456789abc",
+        "geo": "US",
+        "offer_id": 5,
+        **overrides,
+    }
+
+
 @pytest.mark.asyncio
 async def test_create_uses_overrides_and_records_success() -> None:
     creator, repository, audit, streams_creator = build_creator()
@@ -51,13 +65,7 @@ async def test_create_uses_overrides_and_records_success() -> None:
     streams_creator.create.return_value = streams
 
     result = await creator.create(
-        name="campaign",
-        alias="campaign-123456789abc",
-        geo="US",
-        offer_id=5,
-        domain_id=100,
-        group_id=200,
-        source_id=300,
+        **create(domain_id=100, group_id=200, source_id=300)
     )
 
     repository.create_campaign.assert_awaited_once_with(
@@ -87,12 +95,7 @@ async def test_create_uses_configured_defaults() -> None:
     repository.get_campaign.return_value = campaign
     streams_creator.create.return_value = [stream(11, 1)]
 
-    await creator.create(
-        name="campaign",
-        alias="campaign-123456789abc",
-        geo="US",
-        offer_id=5,
-    )
+    await creator.create(**create())
 
     assert repository.create_campaign.await_args.args == (
         CreateCampaign(
@@ -107,18 +110,16 @@ async def test_create_uses_configured_defaults() -> None:
 
 @pytest.mark.asyncio
 async def test_create_maps_missing_offer_to_not_found() -> None:
-    creator, repository, _, _ = build_creator()
+    creator, repository, audit, _ = build_creator()
     repository.get_offer.side_effect = RepositoryNotFoundError
+    progress = CreationProgress()
 
     with pytest.raises(NotFoundError, match="#5"):
-        await creator.create(
-            name="campaign",
-            alias="campaign-123456789abc",
-            geo="US",
-            offer_id=5,
-        )
+        await creator.create(**create(), progress=progress)
 
     repository.create_campaign.assert_not_awaited()
+    assert progress.remote_state == "unchanged"
+    assert audit.finish.await_args.kwargs["status"] == "failed"
 
 
 @pytest.mark.parametrize(
@@ -151,12 +152,7 @@ async def test_create_validates_catalog_before_remote_mutation(
     )
 
     with pytest.raises(NotFoundError, match=message):
-        await creator.create(
-            name="campaign",
-            alias="campaign-123456789abc",
-            geo="US",
-            offer_id=5,
-        )
+        await creator.create(**create())
 
     repository.create_campaign.assert_not_awaited()
     streams_creator.create.assert_not_awaited()
@@ -170,17 +166,14 @@ async def test_create_rolls_back_when_stream_setup_fails() -> None:
     streams_creator.create.side_effect = ExternalServiceError(
         "stream setup failed"
     )
+    progress = CreationProgress()
 
     with pytest.raises(ExternalServiceError, match="stream setup failed"):
-        await creator.create(
-            name="campaign",
-            alias="campaign-123456789abc",
-            geo="US",
-            offer_id=5,
-        )
+        await creator.create(**create(), progress=progress)
 
     repository.delete_campaign.assert_awaited_once_with(7)
     assert audit.finish.await_args.kwargs["status"] == "rolled_back"
+    assert progress.remote_state == "unchanged"
 
 
 @pytest.mark.asyncio
@@ -192,17 +185,71 @@ async def test_create_records_failed_rollback() -> None:
     repository.delete_campaign.side_effect = ExternalServiceError(
         "delete failed"
     )
+    progress = CreationProgress()
 
     with pytest.raises(ExternalServiceError, match="setup failed"):
-        await creator.create(
-            name="campaign",
-            alias="campaign-123456789abc",
-            geo="US",
-            offer_id=5,
-        )
+        await creator.create(**create(), progress=progress)
 
     assert audit.finish.await_args.kwargs["status"] == "rollback_failed"
     assert "rollback failed" in audit.finish.await_args.kwargs["error"]
+    assert progress.remote_state == "leftover"
+    assert progress.campaign_id == 7
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "failure",
+    [
+        # Ответ на запрос не получен: кампания могла создаться.
+        ExternalServiceError("Keitaro недоступен"),
+        ExternalServiceError("POST /campaigns -> HTTP 500", status=500),
+    ],
+)
+async def test_create_reports_unknown_outcome_without_an_answer(
+    failure: ExternalServiceError,
+) -> None:
+    creator, repository, audit, _ = build_creator()
+    repository.get_offer.return_value = Offer(id=5, name="offer")
+    repository.create_campaign.side_effect = failure
+    progress = CreationProgress()
+
+    with pytest.raises(ExternalServiceError):
+        await creator.create(**create(), progress=progress)
+
+    assert progress.remote_state == "unknown"
+    assert audit.finish.await_args.kwargs["status"] == "unknown"
+    repository.delete_campaign.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_create_reports_rejected_request_as_failed() -> None:
+    creator, repository, audit, _ = build_creator()
+    repository.get_offer.return_value = Offer(id=5, name="offer")
+    repository.create_campaign.side_effect = ExternalServiceError(
+        "POST /campaigns -> HTTP 400", status=400
+    )
+    progress = CreationProgress()
+
+    with pytest.raises(ExternalServiceError, match="HTTP 400"):
+        await creator.create(**create(), progress=progress)
+
+    assert progress.remote_state == "unchanged"
+    assert audit.finish.await_args.kwargs["status"] == "failed"
+    repository.delete_campaign.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_create_records_cancelled_attempt_before_remote_write() -> None:
+    creator, repository, audit, _ = build_creator()
+    repository.get_offer.side_effect = asyncio.CancelledError()
+    progress = CreationProgress()
+
+    with pytest.raises(asyncio.CancelledError):
+        await creator.create(**create(), progress=progress)
+
+    assert audit.finish.await_args.kwargs["status"] == "cancelled"
+    assert progress.remote_state == "unchanged"
+    repository.create_campaign.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -215,19 +262,16 @@ async def test_create_verifies_campaign_before_saving_snapshot() -> None:
     snapshots = AsyncMock()
     creator._snapshots = snapshots
 
-    await creator.create(
-        name="campaign",
-        alias="campaign-123456789abc",
-        geo="US",
-        offer_id=5,
-    )
+    await creator.create(**create())
 
     repository.get_campaign.assert_awaited_once_with(7)
     snapshots.save.assert_awaited_once_with(campaign, [stream(11, 1)])
 
 
 @pytest.mark.asyncio
-async def test_create_rolls_back_when_campaign_verification_fails() -> None:
+async def test_create_rolls_back_when_keitaro_returns_another_campaign() -> (
+    None
+):
     creator, repository, audit, streams_creator = build_creator()
     repository.create_campaign.return_value = Campaign(id=7, name="campaign")
     repository.get_campaign.return_value = Campaign(id=8, name="other")
@@ -236,19 +280,44 @@ async def test_create_rolls_back_when_campaign_verification_fails() -> None:
     with pytest.raises(
         ExternalServiceError, match="вместо созданной кампании"
     ):
-        await creator.create(
-            name="campaign",
-            alias="campaign-123456789abc",
-            geo="US",
-            offer_id=5,
-        )
+        await creator.create(**create())
 
     repository.delete_campaign.assert_awaited_once_with(7)
     assert audit.finish.await_args.kwargs["status"] == "rolled_back"
 
 
 @pytest.mark.asyncio
-async def test_create_rolls_back_if_local_snapshot_cannot_be_saved() -> None:
+async def test_create_keeps_campaign_when_keitaro_adjusts_fields() -> None:
+    creator, repository, audit, streams_creator = build_creator()
+    repository.create_campaign.return_value = Campaign(id=7, name="campaign")
+    repository.get_campaign.return_value = Campaign(
+        id=7,
+        name="campaign ",
+        alias="other-alias",
+        domain_id=111,
+        group_id=None,
+        traffic_source_id=30,
+    )
+    streams_creator.create.return_value = [stream(11, 1)]
+    progress = CreationProgress()
+
+    await creator.create(**create(), progress=progress)
+
+    repository.delete_campaign.assert_not_awaited()
+    assert audit.finish.await_args.kwargs["status"] == "ok"
+    assert audit.finish.await_args.kwargs["detail"]["warnings"] == (
+        progress.warnings
+    )
+    assert any("название" in warning for warning in progress.warnings)
+    assert any("алиас" in warning for warning in progress.warnings)
+    assert any("домен" in warning for warning in progress.warnings)
+    assert not any("источник" in warning for warning in progress.warnings)
+
+
+@pytest.mark.asyncio
+async def test_create_keeps_campaign_when_local_snapshot_cannot_be_saved() -> (
+    None
+):
     creator, repository, audit, streams_creator = build_creator()
     campaign = Campaign(id=7, name="campaign")
     repository.create_campaign.return_value = campaign
@@ -257,14 +326,11 @@ async def test_create_rolls_back_if_local_snapshot_cannot_be_saved() -> None:
     snapshots = AsyncMock()
     snapshots.save.side_effect = RuntimeError("database unavailable")
     creator._snapshots = snapshots
+    progress = CreationProgress()
 
-    with pytest.raises(RuntimeError, match="database unavailable"):
-        await creator.create(
-            name="campaign",
-            alias="campaign-123456789abc",
-            geo="US",
-            offer_id=5,
-        )
+    result = await creator.create(**create(), progress=progress)
 
-    repository.delete_campaign.assert_awaited_once_with(7)
-    assert audit.finish.await_args.kwargs["status"] == "rolled_back"
+    repository.delete_campaign.assert_not_awaited()
+    assert result == (campaign, [stream(11, 1)])
+    assert audit.finish.await_args.kwargs["status"] == "ok"
+    assert any("снимок" in warning for warning in progress.warnings)

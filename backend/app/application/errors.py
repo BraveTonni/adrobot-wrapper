@@ -16,3 +16,8 @@ class RepositoryNotFoundError(Exception):
 
 class ExternalServiceError(Exception):
     """Внешний сервис не смог выполнить запрос."""
+
+    def __init__(self, message: str, *, status: int | None = None) -> None:
+        super().__init__(message)
+        # HTTP-статус ответа внешнего сервиса; None — ответ не получен.
+        self.status = status
