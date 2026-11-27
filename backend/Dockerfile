@@ -24,9 +24,10 @@ FROM python:3.14-slim-bookworm@sha256:e60ad028afdcdd14772a3d46decf0eaf616720f910
 
 # Use a dated Debian snapshot so security updates stay repeatable for this
 # pinned base image. The runtime never installs packages after startup.
+# 20261125 shipped linux-pam 1.5.2-6+deb12u2 with CVE-2025-6020 (fixed in u3).
 RUN rm -f /etc/apt/sources.list.d/debian.sources \
-    && printf 'Types: deb\nURIs: https://snapshot.debian.org/archive/debian/20261125T000000Z\nSuites: bookworm bookworm-updates\nComponents: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\nCheck-Valid-Until: no\n' > /etc/apt/sources.list.d/debian.sources \
-    && printf 'Types: deb\nURIs: https://snapshot.debian.org/archive/debian-security/20261125T000000Z\nSuites: bookworm-security\nComponents: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\nCheck-Valid-Until: no\n' > /etc/apt/sources.list.d/debian-security.sources \
+    && printf 'Types: deb\nURIs: https://snapshot.debian.org/archive/debian/20261127T000000Z\nSuites: bookworm bookworm-updates\nComponents: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\nCheck-Valid-Until: no\n' > /etc/apt/sources.list.d/debian.sources \
+    && printf 'Types: deb\nURIs: https://snapshot.debian.org/archive/debian-security/20261127T000000Z\nSuites: bookworm-security\nComponents: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\nCheck-Valid-Until: no\n' > /etc/apt/sources.list.d/debian-security.sources \
     && DEBIAN_FRONTEND=noninteractive apt-get update \
     && apt-get upgrade -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
