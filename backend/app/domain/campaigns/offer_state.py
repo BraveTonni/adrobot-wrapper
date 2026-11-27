@@ -95,23 +95,6 @@ def restore_offer(
     return updated
 
 
-def publish_draft(offers: list[StreamOffer]) -> list[StreamOffer]:
-    active = [offer for offer in offers if not offer.is_deleted]
-    validate_offer_shares(active)
-    return [
-        replace(
-            offer,
-            published_state=(
-                "deleted" if offer.is_deleted else offer.draft_state
-            ),
-            published_share=offer.draft_share,
-            state=offer.draft_state,
-            share=cast(int, offer.draft_share),
-        )
-        for offer in offers
-    ]
-
-
 def offers_for_push(offers: list[StreamOffer]) -> list[StreamOffer]:
     active = [offer for offer in offers if not offer.is_deleted]
     validate_offer_shares(active)

@@ -5,7 +5,6 @@ from app.domain.campaigns.offer_state import (
     cancel_draft,
     has_draft,
     offers_for_push,
-    publish_draft,
     restore_offer,
     soft_delete_offer,
 )
@@ -165,31 +164,3 @@ def test_deleted_offer_share_difference_is_not_an_unpublished_draft() -> None:
     )
 
     assert not has_draft(offer)
-
-
-def test_publish_draft_copies_draft_to_published_state() -> None:
-    offers = [
-        StreamOffer(
-            offer_id=1,
-            share=100,
-            state="active",
-            published_share=100,
-            published_state="active",
-            draft_share=60,
-            draft_state="active",
-        ),
-        StreamOffer(
-            offer_id=2,
-            share=40,
-            state="active",
-            published_share=0,
-            published_state="deleted",
-            draft_share=40,
-            draft_state="active",
-        ),
-    ]
-
-    published = publish_draft(offers)
-
-    assert [offer.published_share for offer in published] == [60, 40]
-    assert all(not has_draft(offer) for offer in published)
