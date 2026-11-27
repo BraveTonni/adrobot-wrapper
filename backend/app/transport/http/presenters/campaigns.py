@@ -17,6 +17,7 @@ class CampaignResponseFactory:
         streams: list[Stream],
         offers: list[Offer],
         admin_base_url: str,
+        warnings: list[str] | None = None,
     ) -> CampaignOut:
         base = admin_base_url.rstrip("/")
         return CampaignOut(
@@ -28,6 +29,7 @@ class CampaignResponseFactory:
                 CampaignResponseFactory.stream(stream, offers)
                 for stream in streams
             ],
+            warnings=warnings or [],
         )
 
     @staticmethod

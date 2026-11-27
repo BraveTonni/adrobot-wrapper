@@ -40,6 +40,8 @@ class CampaignOut(BaseModel):
     alias: str | None
     admin_url: str
     streams: list[StreamOut]
+    # Расхождения между отправленными и сохранёнными Keitaro полями.
+    warnings: list[str] = Field(default_factory=list)
 
 
 class CampaignSummaryOut(BaseModel):
