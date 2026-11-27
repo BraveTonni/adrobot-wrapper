@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.application.catalog.dtos import References
 from app.application.ports import CatalogReaderRepository
 from app.domain.catalog.entities import Offer, Reference
-from app.infrastructure.cache.ttl import TTLCache
 from app.infrastructure.persistence.models.catalog_cache import (
     CatalogCacheEntry,
 )
@@ -23,13 +22,11 @@ class CachedCatalogRepository:
         *,
         offers_ttl: float,
         references_ttl: float,
-        session_factory: async_sessionmaker[AsyncSession] | None = None,
+        session_factory: async_sessionmaker[AsyncSession],
     ) -> None:
         self._repository = repository
         self._session_factory = session_factory
-        self._offers: TTLCache[list[Offer]] = TTLCache(offers_ttl)
-        self._references: TTLCache[References] = TTLCache(references_ttl)
-        self._locks = {
+        self._locks: dict[str, asyncio.Lock] = {
             "offers": asyncio.Lock(),
             "references": asyncio.Lock(),
         }
@@ -57,23 +54,6 @@ class CachedCatalogRepository:
         *,
         force: bool = False,
     ) -> T:
-        if self._session_factory is None:
-            if key == "offers":
-                offers_loader = cast(
-                    Callable[[], Awaitable[list[Offer]]], loader
-                )
-                if force:
-                    return cast(T, await self._offers.refresh(offers_loader))
-                return cast(T, await self._offers.get(offers_loader))
-            references_loader = cast(
-                Callable[[], Awaitable[References]], loader
-            )
-            if force:
-                return cast(
-                    T, await self._references.refresh(references_loader)
-                )
-            return cast(T, await self._references.get(references_loader))
-
         async with self._locks[key]:
             async with self._session_factory() as session:
                 entry = await session.get(CatalogCacheEntry, key)
@@ -85,15 +65,17 @@ class CachedCatalogRepository:
                     return cast(T, _decode(key, entry.payload))
 
             value = await loader()
-            payload = _encode(key, value)
             async with self._database_write_lock:
                 async with self._session_factory() as session:
                     entry = await session.get(CatalogCacheEntry, key)
                     if entry is None:
-                        entry = CatalogCacheEntry(key=key, payload=payload)
-                        session.add(entry)
+                        session.add(
+                            CatalogCacheEntry(
+                                key=key, payload=_encode(key, value)
+                            )
+                        )
                     else:
-                        entry.payload = payload
+                        entry.payload = _encode(key, value)
                         entry.updated_at = datetime.now(UTC)
                     await session.commit()
             return value
