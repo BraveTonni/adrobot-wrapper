@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, isCreationBlocked } from "@/lib/api";
 import type {
   Campaign,
   CampaignCreate,
   CampaignSummary,
   OfferSummary,
   References,
+  Stream,
 } from "@/lib/types";
 
 const emptyCampaign: CampaignCreate = { name: "", geo: "", offer_id: 0 };
@@ -16,6 +17,22 @@ const emptyCampaign: CampaignCreate = { name: "", geo: "", offer_id: 0 };
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message;
   return "Произошла непредвиденная ошибка. Попробуйте ещё раз.";
+}
+
+/** Сообщение зависит от режима: изменения уходят в Keitaro сразу или копятся в черновике. */
+function offerChangeMessage(
+  stream: Stream,
+  action: "add" | "remove",
+  offerName: string,
+): string {
+  if (stream.offers.some((offer) => offer.has_draft)) {
+    return action === "add"
+      ? `Оффер «${offerName}» добавлен в черновик.`
+      : `Оффер «${offerName}» помечен на удаление.`;
+  }
+  return action === "add"
+    ? `Оффер «${offerName}» добавлен, изменения опубликованы в Keitaro.`
+    : `Оффер «${offerName}» удалён, доли пересчитаны в Keitaro.`;
 }
 
 export function useCampaignWorkspace() {
@@ -29,6 +46,8 @@ export function useCampaignWorkspace() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // Backend держит предыдущую попытку: повтор с тем же ключом вернёт 409.
+  const [creationBlocked, setCreationBlocked] = useState(false);
   const idempotencyKey = useRef<string | null>(null);
 
   useEffect(() => {
@@ -58,24 +77,39 @@ export function useCampaignWorkspace() {
     };
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    api
-      .campaigns(search)
-      .then((items) => {
-        if (active) setCampaigns(items);
-      })
-      .catch((reason: unknown) => {
-        if (active) setError(getErrorMessage(reason));
-      });
-    return () => {
-      active = false;
-    };
-  }, [search]);
+  function replaceStream(updatedStream: Stream) {
+    setCampaign((current) =>
+      current
+        ? {
+            ...current,
+            streams: current.streams.map((stream) =>
+              stream.id === updatedStream.id ? updatedStream : stream,
+            ),
+          }
+        : current,
+    );
+  }
+
+  function offerName(offerId: number): string {
+    return (
+      offers.find((offer) => offer.id === offerId)?.name ??
+      campaign?.streams
+        .flatMap((stream) => stream.offers)
+        .find((offer) => offer.offer_id === offerId)?.name ??
+      `#${offerId}`
+    );
+  }
 
   function updateForm(value: CampaignCreate) {
     idempotencyKey.current = null;
+    setCreationBlocked(false);
     setForm(value);
+  }
+
+  /** Новая попытка: после проверки, что прошлая кампания не создалась в Keitaro. */
+  function restartCreation() {
+    idempotencyKey.current = null;
+    setCreationBlocked(false);
   }
 
   async function refreshCatalog() {
@@ -111,15 +145,18 @@ export function useCampaignWorkspace() {
         geo: form.geo.trim().toUpperCase(),
       }, idempotencyKey.current);
     } catch (reason) {
+      if (isCreationBlocked(reason)) setCreationBlocked(true);
       toast.error(getErrorMessage(reason));
       setIsSaving(false);
       return;
     }
 
     idempotencyKey.current = null;
+    setCreationBlocked(false);
     setCampaign(created);
     setForm(emptyCampaign);
     toast.success(`Кампания «${created.name}» создана.`);
+    created.warnings.forEach((warning) => toast.warning(warning));
 
     try {
       setCampaigns(await api.campaigns(search));
@@ -155,23 +192,8 @@ export function useCampaignWorkspace() {
         action === "add"
           ? await api.addOffer(campaign.id, streamId, offerId)
           : await api.removeOffer(campaign.id, streamId, offerId);
-      setCampaign({
-        ...campaign,
-        streams: campaign.streams.map((stream) =>
-          stream.id === updatedStream.id ? updatedStream : stream,
-        ),
-      });
-      const offerName =
-        offers.find((offer) => offer.id === offerId)?.name ??
-        campaign.streams
-          .flatMap((stream) => stream.offers)
-          .find((offer) => offer.offer_id === offerId)?.name ??
-        `#${offerId}`;
-      toast.success(
-        action === "add"
-          ? `Оффер «${offerName}» добавлен в черновик.`
-          : `Оффер «${offerName}» помечен на удаление.`,
-      );
+      replaceStream(updatedStream);
+      toast.success(offerChangeMessage(updatedStream, action, offerName(offerId)));
     } catch (reason) {
       toast.error(getErrorMessage(reason));
     } finally {
@@ -190,12 +212,7 @@ export function useCampaignWorkspace() {
         action === "push"
           ? await api.pushStream(campaign.id, streamId)
           : await api.cancelStreamDraft(campaign.id, streamId);
-      setCampaign({
-        ...campaign,
-        streams: campaign.streams.map((stream) =>
-          stream.id === updatedStream.id ? updatedStream : stream,
-        ),
-      });
+      replaceStream(updatedStream);
       toast.success(
         action === "push"
           ? "Изменения потока опубликованы."
@@ -217,12 +234,7 @@ export function useCampaignWorkspace() {
         streamId,
         offerId,
       );
-      setCampaign({
-        ...campaign,
-        streams: campaign.streams.map((stream) =>
-          stream.id === updatedStream.id ? updatedStream : stream,
-        ),
-      });
+      replaceStream(updatedStream);
       toast.success("Оффер восстановлен в черновике.");
     } catch (reason) {
       toast.error(getErrorMessage(reason));
@@ -242,10 +254,12 @@ export function useCampaignWorkspace() {
     isLoading,
     isRefreshing,
     isSaving,
+    creationBlocked,
     setForm: updateForm,
     setSearch,
     setError,
     createCampaign,
+    restartCreation,
     refreshCatalog,
     selectCampaign,
     changeOffer,

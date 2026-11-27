@@ -63,8 +63,10 @@ export function CampaignWorkspace() {
           isLoading={workspace.isLoading}
           isRefreshing={workspace.isRefreshing}
           isSaving={workspace.isSaving}
+          creationBlocked={workspace.creationBlocked}
           onChange={workspace.setForm}
           onRefresh={workspace.refreshCatalog}
+          onRestart={workspace.restartCreation}
           onSubmit={workspace.createCampaign}
         />
       ) : (

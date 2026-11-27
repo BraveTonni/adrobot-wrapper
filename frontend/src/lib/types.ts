@@ -37,6 +37,8 @@ export type Campaign = {
   alias: string | null;
   admin_url: string;
   streams: Stream[];
+  // Поля, которые Keitaro сохранил иначе, чем их отправили.
+  warnings: string[];
 };
 export type CampaignCreate = {
   name: string;

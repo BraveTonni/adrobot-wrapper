@@ -7,16 +7,26 @@ import type {
   Stream,
 } from "./types";
 
-type ApiErrorBody = { detail?: unknown };
+type ApiErrorBody = { detail?: unknown; code?: unknown };
 
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    // Машино-читаемый код от backend, например `idempotency_pending`.
+    readonly code?: string,
   ) {
     super(message);
     this.name = "ApiError";
   }
+}
+
+/** Backend держит предыдущую попытку создания: тот же ключ повторять нельзя. */
+export function isCreationBlocked(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.code?.startsWith("idempotency_") ?? false)
+  );
 }
 
 type CatalogRefresh = { offers: OfferSummary[]; references: References };
@@ -44,21 +54,25 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    throw new ApiError(await readErrorMessage(response), response.status);
+    throw await readError(response);
   }
 
   return (await response.json()) as T;
 }
 
-async function readErrorMessage(response: Response): Promise<string> {
+async function readError(response: Response): Promise<ApiError> {
+  const fallback = `Ошибка запроса (${response.status})`;
   try {
     const body = (await response.json()) as ApiErrorBody;
-    if (typeof body.detail === "string") return body.detail;
+    return new ApiError(
+      typeof body.detail === "string" ? body.detail : fallback,
+      response.status,
+      typeof body.code === "string" ? body.code : undefined,
+    );
   } catch {
     // Backend may return an empty or non-JSON error body.
+    return new ApiError(fallback, response.status);
   }
-
-  return `Ошибка запроса (${response.status})`;
 }
 
 export const api = {

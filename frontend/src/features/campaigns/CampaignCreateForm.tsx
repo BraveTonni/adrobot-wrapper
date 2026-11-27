@@ -1,7 +1,7 @@
 "use client";
 
-import { Icon } from "@/components/Icon";
 import type { FormEvent } from "react";
+import { Icon } from "@/components/Icon";
 import type { CampaignCreate, OfferSummary, References } from "@/lib/types";
 
 type Props = {
@@ -11,8 +11,11 @@ type Props = {
   isLoading: boolean;
   isRefreshing: boolean;
   isSaving: boolean;
+  // Прошлая попытка создания не завершилась: повтор с теми же данными заблокирован.
+  creationBlocked: boolean;
   onChange: (value: CampaignCreate) => void;
   onRefresh: () => void;
+  onRestart: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
@@ -23,8 +26,10 @@ export function CampaignCreateForm({
   isLoading,
   isRefreshing,
   isSaving,
+  creationBlocked,
   onChange,
   onRefresh,
+  onRestart,
   onSubmit,
 }: Props) {
   function setOptionalId(
@@ -139,10 +144,22 @@ export function CampaignCreateForm({
         </p>
       </section>
 
+      {creationBlocked && (
+        <div className="creation-notice" role="alert">
+          <p>
+            Предыдущая попытка создания ещё выполняется или её итог неизвестен.
+            Проверьте список кампаний в Keitaro: если кампании нет, начните заново.
+          </p>
+          <button className="button" type="button" onClick={onRestart}>
+            Начать заново
+          </button>
+        </div>
+      )}
+
       <div className="actions">
         <button
           className="button primary"
-          disabled={isLoading || isSaving || offers.length === 0}
+          disabled={isLoading || isSaving || creationBlocked || offers.length === 0}
           type="submit"
         >
           {isSaving ? "Создаём…" : "Создать кампанию"}

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api } from "./api";
+import { ApiError, api, isCreationBlocked } from "./api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -97,6 +97,64 @@ describe("API client", () => {
       name: "ApiError",
       status: 0,
       message: "Не удалось подключиться к backend. Проверьте его доступность.",
+    });
+  });
+
+  it("keeps the machine-readable code of a blocked creation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json(
+          { detail: "Предыдущая попытка не завершена", code: "idempotency_pending" },
+          { status: 409 },
+        ),
+      ),
+    );
+
+    const blocked = await api
+      .createCampaign({ name: "Кампания", geo: "RU", offer_id: 42 }, "key")
+      .catch((reason: unknown) => reason);
+
+    expect(blocked).toMatchObject({
+      name: "ApiError",
+      status: 409,
+      code: "idempotency_pending",
+      message: "Предыдущая попытка не завершена",
+    });
+    expect(isCreationBlocked(blocked)).toBe(true);
+  });
+
+  it("does not treat ordinary errors as a blocked creation", () => {
+    expect(isCreationBlocked(new ApiError("offline", 502))).toBe(false);
+    expect(isCreationBlocked(new ApiError("nope", 409, "offer_exists"))).toBe(
+      false,
+    );
+    expect(isCreationBlocked(new TypeError("offline"))).toBe(false);
+  });
+
+  it("falls back to a generic message when detail is not a string", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({ detail: [{ loc: ["body", "geo"] }] }, { status: 422 }),
+      ),
+    );
+
+    await expect(api.campaigns()).rejects.toMatchObject({
+      status: 422,
+      message: "Ошибка запроса (422)",
+    });
+  });
+
+  it("falls back to a generic message when the body is not JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("Bad Gateway", { status: 502 })),
+    );
+
+    await expect(api.campaigns()).rejects.toMatchObject({
+      status: 502,
+      message: "Ошибка запроса (502)",
     });
   });
 });

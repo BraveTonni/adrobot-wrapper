@@ -29,6 +29,7 @@ function renderEditor(...streamOffers: CampaignOffer[]): string {
     name: "Launch",
     alias: "launch",
     admin_url: "https://tracker.example/admin/#!/campaign.editor/7",
+    warnings: [],
     streams: [
       {
         id: 11,
