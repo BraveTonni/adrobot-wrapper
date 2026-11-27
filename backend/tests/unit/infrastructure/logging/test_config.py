@@ -62,3 +62,28 @@ def test_setup_logging_configures_root_and_uvicorn_handlers(
         root.handlers = original_handlers
         root.setLevel(original_level)
         uvicorn_logger.handlers = original_uvicorn_handlers
+
+
+def test_setup_logging_keeps_stdout_when_the_directory_is_not_writable(
+    tmp_path, capsys
+) -> None:
+    root = logging.getLogger()
+    original_handlers = root.handlers[:]
+    original_level = root.level
+    blocker = tmp_path / "not-a-directory"
+    blocker.write_text("file")
+
+    try:
+        setup_logging("INFO", blocker / "logs")
+
+        assert [type(handler) for handler in root.handlers] == [
+            logging.StreamHandler
+        ]
+        # Пред warning уходит в единый консольный handler.
+        assert "недоступен" in capsys.readouterr().err
+    finally:
+        for handler in root.handlers[:]:
+            root.removeHandler(handler)
+            handler.close()
+        root.handlers = original_handlers
+        root.setLevel(original_level)

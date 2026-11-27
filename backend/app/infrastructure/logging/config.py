@@ -129,19 +129,26 @@ class TimestampedJsonFileHandler(logging.Handler):
 def setup_logging(level: str, directory: Path = Path("logs")) -> None:
     """Configure JSON stdout and private timestamped file logging."""
     formatter = JsonFormatter()
-    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
 
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
-    file_handler = TimestampedJsonFileHandler(directory, formatter)
 
     root = logging.getLogger()
     for handler in root.handlers[:]:
         root.removeHandler(handler)
         handler.close()
     root.addHandler(console_handler)
-    root.addHandler(file_handler)
     root.setLevel(level.upper())
+    try:
+        root.addHandler(TimestampedJsonFileHandler(directory, formatter))
+    except OSError as exc:
+        # Например, bind mount в контейнере закрыт на запись: сервис
+        # остаётся доступен, а те же события уходят в stdout.
+        logging.getLogger(__name__).warning(
+            "запись журнала в файл отключена: каталог %s недоступен (%s)",
+            directory,
+            exc,
+        )
 
     for name in _UVICORN_LOGGERS:
         logger = logging.getLogger(name)
