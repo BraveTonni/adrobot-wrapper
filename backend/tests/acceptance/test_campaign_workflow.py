@@ -20,13 +20,17 @@ import pytest
 import respx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 from app.application.campaigns.alias import build_campaign_alias
 from app.config import Settings
+from app.infrastructure.persistence.database import build_engine
+from app.infrastructure.persistence.models import Base
 from app.main import create_app
 
 BACKEND = Path(__file__).resolve().parents[2]
 KEITARO = "https://keitaro.test/admin_api/v1"
+POSTGRES_URL = os.getenv("ACCEPTANCE_DATABASE_URL", "")
 TOKEN = "t" * 40
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
 KEY = "acceptance-key-0001"
@@ -102,36 +106,65 @@ def keep_test_logging(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-@pytest.fixture(scope="module")
-def migrated_database(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Файл SQLite, поднятый настоящими миграциями до head."""
-    database = tmp_path_factory.mktemp("alembic") / "template.db"
+def run_alembic(url: str, *command: str) -> None:
     result = subprocess.run(
-        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        [sys.executable, "-m", "alembic", *command],
         cwd=BACKEND,
-        env={
-            **os.environ,
-            "DATABASE_URL": f"sqlite+aiosqlite:///{database.as_posix()}",
-        },
+        env={**os.environ, "DATABASE_URL": url},
         capture_output=True,
         text=True,
     )
     assert result.returncode == 0, result.stderr
-    return database
+
+
+async def clear_schema(url: str) -> None:
+    """Тесты делят одну схему: каждый начинается с пустых таблиц."""
+    engine = build_engine(url)
+    try:
+        async with engine.begin() as connection:
+            tables = ", ".join(sorted(Base.metadata.tables))
+            await connection.execute(text(f"TRUNCATE TABLE {tables}"))
+    finally:
+        await engine.dispose()
+
+
+@pytest.fixture(scope="module")
+def migrated_database(tmp_path_factory: pytest.TempPathFactory) -> Path | None:
+    """База, поднятая настоящими миграциями до head.
+
+    По умолчанию это файл SQLite. С переменной ACCEPTANCE_DATABASE_URL
+    сценарии выполняются на настоящем PostgreSQL (джоба `postgres` в CI).
+    """
+    if POSTGRES_URL:
+        run_alembic(POSTGRES_URL, "upgrade", "head")
+        yield None
+        run_alembic(POSTGRES_URL, "downgrade", "base")
+        return
+    database = tmp_path_factory.mktemp("alembic") / "template.db"
+    run_alembic(
+        f"sqlite+aiosqlite:///{database.as_posix()}", "upgrade", "head"
+    )
+    yield database
 
 
 @pytest.fixture
-def settings(tmp_path: Path, migrated_database: Path) -> Settings:
+async def settings(tmp_path: Path, migrated_database: Path | None) -> Settings:
+    options: dict[str, object] = {
+        "_env_file": None,
+        "keitaro_url": KEITARO,
+        "keitaro_admin_url": "https://keitaro.test/admin",
+        "keitaro_api_key": "keitaro-key",
+        "api_access_token": TOKEN,
+        "log_directory": tmp_path / "logs",
+    }
+    if POSTGRES_URL:
+        await clear_schema(POSTGRES_URL)
+        return Settings(**options, database_url=POSTGRES_URL)
+    assert migrated_database is not None
     database = tmp_path / "adrobot.db"
     shutil.copyfile(migrated_database, database)
     return Settings(
-        _env_file=None,
-        keitaro_url=KEITARO,
-        keitaro_admin_url="https://keitaro.test/admin",
-        keitaro_api_key="keitaro-key",
-        api_access_token=TOKEN,
-        database_url=f"sqlite+aiosqlite:///{database.as_posix()}",
-        log_directory=tmp_path / "logs",
+        **options, database_url=f"sqlite+aiosqlite:///{database.as_posix()}"
     )
 
 
