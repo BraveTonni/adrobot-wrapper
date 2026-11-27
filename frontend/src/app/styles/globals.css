@@ -443,6 +443,27 @@ select:focus-visible {
   vertical-align: middle;
 }
 
+.offer-state {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.offer-state[data-state="active"] {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.offer-state[data-state="deleted"],
+.offer-state[data-state="disabled"] {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
 .icon-button,
 .theme-toggle {
   width: 42px;

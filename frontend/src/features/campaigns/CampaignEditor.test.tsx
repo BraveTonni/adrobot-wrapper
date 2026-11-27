@@ -4,7 +4,26 @@ import { describe, expect, it, vi } from "vitest";
 import type { Campaign, CampaignOffer } from "@/lib/types";
 import { CampaignEditor } from "./CampaignEditor";
 
-function renderEditor(offer: CampaignOffer): string {
+const LAST_OFFER_HINT = 'title="Последний оффер потока удалить нельзя"';
+
+function offer(overrides: Partial<CampaignOffer> = {}): CampaignOffer {
+  return {
+    offer_id: 42,
+    name: "Offer",
+    share: 100,
+    state: "active",
+    published_share: 100,
+    published_state: "active",
+    draft_share: 100,
+    draft_state: "active",
+    is_pinned: false,
+    is_deleted: false,
+    has_draft: false,
+    ...overrides,
+  };
+}
+
+function renderEditor(...streamOffers: CampaignOffer[]): string {
   const campaign: Campaign = {
     id: 7,
     name: "Launch",
@@ -17,7 +36,7 @@ function renderEditor(offer: CampaignOffer): string {
         type: "default",
         schema: "landings",
         uses_offers: true,
-        offers: [offer],
+        offers: streamOffers,
       },
     ],
   };
@@ -25,7 +44,11 @@ function renderEditor(offer: CampaignOffer): string {
   return renderToStaticMarkup(
     createElement(CampaignEditor, {
       campaign,
-      offers: [{ id: offer.offer_id, name: offer.name ?? "Offer" }],
+      offers: [
+        ...streamOffers.map((item) => ({ id: item.offer_id, name: "Offer" })),
+        // Оффер вне потока, чтобы кнопка добавления оставалась доступной.
+        { id: 1000, name: "Spare offer" },
+      ],
       isSaving: false,
       onOfferChange: vi.fn(),
       onOfferRestore: vi.fn(),
@@ -35,21 +58,64 @@ function renderEditor(offer: CampaignOffer): string {
   );
 }
 
-describe("CampaignEditor draft state", () => {
+describe("CampaignEditor", () => {
+  it("shows the share and the Keitaro state of a published offer", () => {
+    const markup = renderEditor(offer());
+
+    expect(markup).toContain("Доля 100%");
+    expect(markup).toContain("Состояние: активен");
+    expect(markup).toContain('data-state="active"');
+    expect(markup).toContain("ID 42");
+    expect(markup).not.toContain("Опубликовать изменения");
+  });
+
+  it("names offers that Keitaro disabled", () => {
+    const markup = renderEditor(
+      offer({ state: "disabled", draft_state: "disabled" }),
+    );
+
+    expect(markup).toContain("Состояние: отключён");
+    expect(markup).toContain('data-state="disabled"');
+  });
+
+  it("does not offer removing the last active offer", () => {
+    const markup = renderEditor(offer());
+
+    expect(markup).toContain(LAST_OFFER_HINT);
+    expect(markup).toMatch(/aria-label="Удалить оффер Offer"[^>]*disabled=""/);
+  });
+
+  it("allows removing an offer while another one stays", () => {
+    const markup = renderEditor(
+      offer({
+        offer_id: 1,
+        share: 50,
+        published_share: 50,
+        draft_share: 50,
+      }),
+      offer({
+        offer_id: 2,
+        share: 50,
+        published_share: 50,
+        draft_share: 50,
+      }),
+    );
+
+    expect(markup).toContain("Доля 50%");
+    expect(markup).not.toContain(LAST_OFFER_HINT);
+    expect(markup).not.toContain('disabled=""');
+  });
+
   it("renders published and draft shares with publish and cancel controls", () => {
-    const markup = renderEditor({
-      offer_id: 42,
-      name: "Offer",
-      share: 60,
-      state: "active",
-      published_share: 40,
-      published_state: "active",
-      draft_share: 60,
-      draft_state: "active",
-      is_pinned: true,
-      is_deleted: false,
-      has_draft: true,
-    });
+    const markup = renderEditor(
+      offer({
+        share: 60,
+        published_share: 40,
+        draft_share: 60,
+        is_pinned: true,
+        has_draft: true,
+      }),
+    );
 
     expect(markup).toContain("Опубликовано 40%");
     expect(markup).toContain("черновик 60%");
@@ -59,40 +125,24 @@ describe("CampaignEditor draft state", () => {
   });
 
   it("renders restore control for a deleted offer", () => {
-    const markup = renderEditor({
-      offer_id: 42,
-      name: "Offer",
-      share: 60,
-      state: "deleted",
-      published_share: 40,
-      published_state: "active",
-      draft_share: 60,
-      draft_state: "deleted",
-      is_pinned: false,
-      is_deleted: true,
-      has_draft: true,
-    });
+    const markup = renderEditor(
+      offer({
+        state: "deleted",
+        share: 60,
+        published_share: 40,
+        draft_share: 60,
+        draft_state: "deleted",
+        is_deleted: true,
+        has_draft: true,
+      }),
+    );
 
     expect(markup).toContain('aria-label="Восстановить оффер Offer"');
     expect(markup).toContain("черновик удалён");
   });
-});
 
-describe("CampaignEditor icons", () => {
   it("draws icons without an external icon font", () => {
-    const markup = renderEditor({
-      offer_id: 42,
-      name: "Offer",
-      share: 100,
-      state: "active",
-      published_share: 100,
-      published_state: "active",
-      draft_share: 100,
-      draft_state: "active",
-      is_pinned: false,
-      is_deleted: false,
-      has_draft: false,
-    });
+    const markup = renderEditor(offer());
 
     expect(markup).toContain('<svg aria-hidden="true" class="icon"');
     expect(markup).not.toContain("Material Icons");

@@ -1,8 +1,8 @@
 "use client";
 
-import { Icon } from "@/components/Icon";
 import type { FormEvent } from "react";
-import type { Campaign, OfferSummary, Stream } from "@/lib/types";
+import { Icon } from "@/components/Icon";
+import type { Campaign, CampaignOffer, OfferSummary, Stream } from "@/lib/types";
 import { getSafeAdminUrl } from "@/lib/urls";
 
 type Props = {
@@ -18,6 +18,8 @@ type Props = {
   onStreamPush: (streamId: number) => void;
   onStreamCancel: (streamId: number) => void;
 };
+
+const LAST_OFFER_HINT = "Последний оффер потока удалить нельзя";
 
 export function CampaignEditor({
   campaign,
@@ -108,6 +110,7 @@ function StreamCard({
     (offer) => !stream.offers.some((current) => current.offer_id === offer.id),
   );
   const hasDraft = stream.offers.some((offer) => offer.has_draft);
+  const activeOffers = stream.offers.filter((offer) => !offer.is_deleted).length;
 
   return (
     <article className="stream-card">
@@ -123,42 +126,14 @@ function StreamCard({
           ) : (
             <ul className="offer-stack">
               {stream.offers.map((offer) => (
-                <li className="offer-row" key={offer.offer_id}>
-                  <span>
-                    <strong>
-                      {offer.name || `Оффер ${offer.offer_id}`}
-                      {offer.is_pinned ? " · закреплён" : ""}
-                    </strong>
-                    <span className="muted offer-meta">
-                      Опубликовано {offer.published_share}% · черновик{" "}
-                      {offer.is_deleted ? "удалён" : `${offer.draft_share}%`} · ID{" "}
-                      {offer.offer_id}
-                    </span>
-                  </span>
-                  {offer.is_deleted ? (
-                    <button
-                      aria-label={`Восстановить оффер ${offer.name || offer.offer_id}`}
-                      className="button icon-button"
-                      disabled={isSaving}
-                      type="button"
-                      onClick={() => onOfferRestore(stream.id, offer.offer_id)}
-                    >
-                      <Icon name="restore" />
-                    </button>
-                  ) : (
-                    <button
-                      aria-label={`Удалить оффер ${offer.name || offer.offer_id}`}
-                      className="button danger icon-button"
-                      disabled={isSaving}
-                      type="button"
-                      onClick={() =>
-                        onOfferChange(stream.id, offer.offer_id, "remove")
-                      }
-                    >
-                      <Icon name="delete" />
-                    </button>
-                  )}
-                </li>
+                <OfferRow
+                  key={offer.offer_id}
+                  offer={offer}
+                  isLast={activeOffers <= 1}
+                  isSaving={isSaving}
+                  onRemove={() => onOfferChange(stream.id, offer.offer_id, "remove")}
+                  onRestore={() => onOfferRestore(stream.id, offer.offer_id)}
+                />
               ))}
             </ul>
           )}
@@ -215,5 +190,80 @@ function StreamCard({
         </p>
       )}
     </article>
+  );
+}
+
+function offerStateLabel(state: string | null): string {
+  switch (state) {
+    case "active":
+      return "активен";
+    case "disabled":
+      return "отключён";
+    case "deleted":
+      return "удалён";
+    default:
+      return "неизвестно";
+  }
+}
+
+function OfferRow({
+  offer,
+  isLast,
+  isSaving,
+  onRemove,
+  onRestore,
+}: {
+  offer: CampaignOffer;
+  isLast: boolean;
+  isSaving: boolean;
+  onRemove: () => void;
+  onRestore: () => void;
+}) {
+  const label = offer.name || `Оффер ${offer.offer_id}`;
+
+  return (
+    <li className="offer-row">
+      <span>
+        <strong>
+          {label}
+          {offer.is_pinned ? " · закреплён" : ""}
+        </strong>
+        <span className="muted offer-meta">
+          <span className="offer-state" data-state={offer.state ?? "unknown"}>
+            Состояние: {offerStateLabel(offer.state)}
+          </span>
+          {" · "}
+          {offer.has_draft
+            ? `Опубликовано ${offer.published_share}% · черновик ${
+                offer.is_deleted ? "удалён" : `${offer.draft_share}%`
+              }`
+            : `Доля ${offer.share}%`}
+          {" · ID "}
+          {offer.offer_id}
+        </span>
+      </span>
+      {offer.is_deleted ? (
+        <button
+          aria-label={`Восстановить оффер ${label}`}
+          className="button icon-button"
+          disabled={isSaving}
+          type="button"
+          onClick={onRestore}
+        >
+          <Icon name="restore" />
+        </button>
+      ) : (
+        <button
+          aria-label={`Удалить оффер ${label}`}
+          className="button danger icon-button"
+          disabled={isSaving || isLast}
+          title={isLast ? LAST_OFFER_HINT : undefined}
+          type="button"
+          onClick={onRemove}
+        >
+          <Icon name="delete" />
+        </button>
+      )}
+    </li>
   );
 }
