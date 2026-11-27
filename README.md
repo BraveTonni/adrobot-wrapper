@@ -3,6 +3,17 @@
 Веб-сервис поверх Admin API рекламного трекера Keitaro: создаватор кампаний
 и редактор офферов.
 
+Что умеет:
+
+- создаёт кампанию с гео-потоком и потоком оффера, проверяет справочники до
+  первой записи и удаляет недоделанную кампанию при сбое;
+- защищает от дублей: повтор отправки формы с тем же ключом идемпотентности не
+  создаёт вторую кампанию;
+- редактирует офферы потока: изменения сразу уходят в Keitaro, доли всегда дают
+  в сумме 100%, последний оффер потока удалить нельзя;
+- ведёт журнал операций со статусами `ok`, `rolled_back`, `rollback_failed` и
+  `unknown` в PostgreSQL или SQLite.
+
 ## Требования
 
 - GNU Make
@@ -21,7 +32,8 @@ cp backend/.env.example backend/.env
 
 В `backend/.env` укажите `KEITARO_API_KEY` и задайте случайный
 `API_ACCESS_TOKEN` длиной не менее 32 символов. Токен можно сгенерировать
-командой `openssl rand -hex 32`. Не коммитьте файл `.env`.
+командой `openssl rand -hex 32`. Без ключа Keitaro backend не стартует.
+Не коммитьте файл `.env`.
 
 Затем из корня репозитория выполните:
 
@@ -60,26 +72,28 @@ make alembic ARGS="revision --autogenerate -m 'describe change'"
 
 ## Docker Compose
 
-Для локального запуска скопируйте `.env.example` в `.env`, задайте
-нечувствительные настройки при необходимости и создайте все Compose secrets:
+Стек поднимает PostgreSQL, применяет миграции и запускает backend и frontend.
+Локальные настройки и секреты создаёт одна команда:
 
 ```bash
-cp .env.example .env
-chmod 600 .env
-install -d -m 700 backend/.secrets
+make secrets
+```
+
+Она копирует `.env.example` в `.env` и генерирует случайные токены и пароли в
+`backend/.secrets/`, не перезаписывая существующие файлы. Ключ Keitaro
+заполните вручную:
+
+```bash
 read -rsp "Keitaro API key: " KEITARO_API_KEY
 printf '\n'
 printf '%s' "$KEITARO_API_KEY" > backend/.secrets/keitaro_api_key
 unset KEITARO_API_KEY
-openssl rand -hex 32 > backend/.secrets/api_access_token
-printf '%s' 'sqlite+aiosqlite:////data/adrobot.db' > backend/.secrets/database_url
-openssl rand -hex 32 > backend/.secrets/frontend_auth_password
 make run
 ```
 
 Compose:
 
-- сначала применит **миграции**;
+- поднимет **PostgreSQL 16** и применит **миграции**;
 - затем запустит backend и frontend;
 - API будет доступно только на `127.0.0.1:8000`;
 - интерфейс будет доступен на `http://localhost:3000`;
@@ -97,7 +111,9 @@ Secrets:
 - `.env` и secret-файлы нельзя коммитить;
 - `keitaro_api_key` — ключ тестового стенда Keitaro;
 - `api_access_token` — отдельный случайный токен для вызовов backend из frontend;
-- `frontend_auth_password` задаёт пароль браузерного входа; логин — `admin`.
+- `frontend_auth_password` задаёт пароль браузерного входа; логин — `admin`;
+- `postgres_password` — пароль пользователя базы, `database_url` — строка
+  подключения, собранная из него.
 
 ### Авторизация во frontend
 
@@ -123,6 +139,9 @@ make check
 
 `make check` запускает backend lint, typecheck и тесты, строгую сборку
 документации, а также frontend lint, typecheck, тесты и production build.
+Тесты не обращаются к внешним сервисам: помимо unit-тестов они прогоняют
+приёмочные сценарии на собранном приложении с настоящим HTTP-контуром и
+Keitaro под моками.
 
 Backend пишет JSON-журналы в `logs/` и stdout. Файлы именуются по времени
 создания (`YYYY_MM_DD_HH_MM_SS.log`); HTTP-запросы включают correlation ID.
@@ -154,6 +173,8 @@ make docs
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
 CI (GitHub Actions) гоняет `make check` на каждый push в `main` и на каждый PR.
+Отдельная джоба поднимает PostgreSQL 16, применяет миграции, сверяет их с
+моделями (`alembic check`) и запускает сценарии и тесты репозиториев на нём.
 
 Есть отдельный workflow `Auto Format`: он запускает `ruff format` и сам коммитит изменения, если они есть.
 

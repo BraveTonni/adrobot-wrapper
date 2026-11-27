@@ -57,4 +57,7 @@ make test
 
 `make fmt` сортирует импорты правилом Ruff `I` и форматирует Python-код.
 GitHub Actions запускает `make fmt` и автоматически коммитит исправления.
-`make check` запускает Ruff, mypy и строгую сборку документации.
+`make check` — то же, что CI: Ruff, mypy strict, pytest, строгая сборка
+документации и проверки frontend (ESLint, tsc, тесты, production build).
+Отдельная джоба CI повторяет миграции и сценарии на PostgreSQL; после изменения
+ORM-моделей убедитесь, что `uv run alembic check` не находит расхождений.

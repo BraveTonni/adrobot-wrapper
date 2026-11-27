@@ -15,7 +15,8 @@ cp .env.example .env
 ```
 
 Заполните `KEITARO_API_KEY` и `API_ACCESS_TOKEN` (случайный секрет не короче
-32 символов), а при необходимости URL/ID справочников в `.env`.
+32 символов), а при необходимости URL/ID справочников в `.env`. Без
+`KEITARO_API_KEY` backend не стартует.
 Подробности приведены в [конфигурации](configuration.md).
 
 ## Запуск без контейнера
@@ -36,22 +37,52 @@ FastAPI доступна по `/docs`, OpenAPI JSON — по `/openapi.json`.
 ## Проверки
 
 ```bash
-make check       # Ruff и mypy
+make fmt         # сортировка импортов и форматирование Python-файлов
+make check       # Ruff, mypy, pytest, документация и проверки frontend
 make test        # pytest
-make fmt         # форматирование Python-файлов
 make docs        # строгая сборка документации
 make docs-serve  # локальный сервер документации с автообновлением
 ```
 
-Обычные тесты автоматически блокируют незамоканные HTTPX-запросы через
-`respx`; внешние интеграционные тесты помечаются `integration` и не входят в
-`make test` по умолчанию. Unit-тесты также покрывают граничные количества
-офферов, pinned-доли, отмену и публикацию черновика, восстановление после
-soft delete и откат создания кампании.
+`make test` запускает три набора тестов, ни один из них не обращается к
+внешним сервисам:
+
+- unit-тесты слоёв: сценарии создания и редактора, распределение долей,
+  клиент Keitaro под моками `respx`, SQL-репозитории на SQLite, обработчики
+  ошибок;
+- `tests/acceptance` — сценарии на собранном приложении: настоящий HTTP-контур
+  с аутентификацией и обработчиками ошибок, база, поднятая настоящими
+  миграциями, и Keitaro под моками;
+- репозитории и миграции на PostgreSQL (`tests/integration/postgres`) — только
+  с переменной `TEST_DATABASE_URL`, в CI их запускает отдельная джоба.
+
+Общий сторож `respx` в `conftest.py` валит любой незамоканный HTTP-запрос.
+Интеграционные тесты настоящего Keitaro помечены `integration` и не входят в
+`make test` по умолчанию.
 
 GitHub Actions собирает backend-образ и запускает Trivy. Сборка падает при
 исправляемых уязвимостях уровня HIGH или CRITICAL; проверка запускается для
 pull request, push в `main` и еженедельно.
+
+## Тесты на PostgreSQL
+
+Джоба `postgres` в CI поднимает PostgreSQL 16, применяет миграции, сверяет их
+с моделями командой `alembic check` и запускает приёмочные сценарии и тесты
+репозиториев. Локально нужен любой доступный PostgreSQL 16:
+
+```bash
+docker run -d --name adrobot-pg -e POSTGRES_USER=adrobot \
+  -e POSTGRES_PASSWORD=adrobot -e POSTGRES_DB=adrobot -p 5432:5432 postgres:16-alpine
+cd backend
+export TEST_DATABASE_URL=postgresql+asyncpg://adrobot:adrobot@127.0.0.1:5432/adrobot
+export ACCEPTANCE_DATABASE_URL="$TEST_DATABASE_URL"
+uv run pytest tests/acceptance
+uv run pytest -m integration tests/integration/postgres
+```
+
+Оба набора сами применяют миграции и откатывают базу до пустой схемы.
+
+## Тесты настоящего Keitaro
 
 Интеграционные тесты Keitaro по умолчанию исключены из быстрого набора,
 чтобы обычный запуск не обращался к внешнему API. Задайте `KEITARO_API_KEY`
@@ -72,12 +103,19 @@ uv run pytest tests/integration/infrastructure/keitaro/test_client.py -m integra
 KEITARO_TEST_CAMPAIGN_PREFIX='test_<фамилия>_' uv run pytest -m integration
 ```
 
-После изменения схемы ORM создайте и примените миграцию из `backend/`:
+## Изменение схемы
+
+После изменения ORM-моделей создайте и примените миграцию из `backend/`,
+затем убедитесь, что модель и миграция не разошлись:
 
 ```bash
 uv run alembic revision --autogenerate -m "describe change"
 uv run alembic upgrade head
+uv run alembic check
 ```
+
+Миграции должны работать и на SQLite, и на PostgreSQL: для изменения типов и
+ограничений используйте `op.batch_alter_table`.
 
 ## Как менять документацию
 
